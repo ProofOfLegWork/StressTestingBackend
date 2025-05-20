@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K6 Stress Test Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .test-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn-test {
+            width: 100%;
+            margin: 5px;
+            padding: 10px;
+            font-weight: 500;
+        }
+        .status-panel {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .matrix-header {
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+        .custom-test-form {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">K6 Stress Test Dashboard</h1>
+        
+        <!-- Custom Test Configuration -->
+        <div class="custom-test-form">
+            <h3>Custom Test Configuration</h3>
+            <form id="customTestForm" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Test Name</label>
+                    <input type="text" class="form-control" id="testName" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Initial Users</label>
+                    <input type="number" class="form-control" id="initialUsers" value="10" min="1" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Target Users</label>
+                    <input type="number" class="form-control" id="targetUsers" value="50" min="1" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Duration (minutes)</label>
+                    <input type="number" class="form-control" id="duration" value="5" min="1" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Run Custom Test</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Preset Test Matrix -->
+        <div class="test-card">
+            <h3>Preset Test Scenarios</h3>
+            <div class="test-matrix">
+                <div class="matrix-header">Test Type</div>
+                <div class="matrix-header">Duration</div>
+                <div class="matrix-header">Users</div>
+                <div class="matrix-header">Action</div>
+
+                <!-- Smoke Test -->
+                <div>Smoke Test</div>
+                <div>3 minutes</div>
+                <div>10 users</div>
+                <div><button class="btn btn-primary btn-test" onclick="runTest('smoke')">Run Smoke</button></div>
+
+                <!-- Load Test -->
+                <div>Load Test</div>
+                <div>9 minutes</div>
+                <div>50 users</div>
+                <div><button class="btn btn-info btn-test" onclick="runTest('load')">Run Load</button></div>
+
+                <!-- Stress Test -->
+                <div>Stress Test</div>
+                <div>9 minutes</div>
+                <div>100 users</div>
+                <div><button class="btn btn-warning btn-test" onclick="runTest('stress')">Run Stress</button></div>
+
+                <!-- Spike Test -->
+                <div>Spike Test</div>
+                <div>2 minutes</div>
+                <div>200 users</div>
+                <div><button class="btn btn-danger btn-test" onclick="runTest('spike')">Run Spike</button></div>
+
+                <!-- Endurance Test -->
+                <div>Endurance Test</div>
+                <div>30 minutes</div>
+                <div>50 users</div>
+                <div><button class="btn btn-success btn-test" onclick="runTest('endurance')">Run Endurance</button></div>
+
+                <!-- Soak Test -->
+                <div>Soak Test</div>
+                <div>60 minutes</div>
+                <div>25 users</div>
+                <div><button class="btn btn-secondary btn-test" onclick="runTest('soak')">Run Soak</button></div>
+            </div>
+        </div>
+
+        <!-- Real-time Metrics -->
+        <div class="status-panel">
+            <h3>Real-time Metrics</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h5>Response Time</h5>
+                    <canvas id="responseTimeChart"></canvas>
+                </div>
+                <div class="metric-card">
+                    <h5>Virtual Users</h5>
+                    <canvas id="usersChart"></canvas>
+                </div>
+                <div class="metric-card">
+                    <h5>Request Rate</h5>
+                    <canvas id="requestRateChart"></canvas>
+                </div>
+                <div class="metric-card">
+                    <h5>Error Rate</h5>
+                    <canvas id="errorRateChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Status -->
+        <div class="status-panel">
+            <h3>Test Status</h3>
+            <div id="testStatus" class="alert alert-info">
+                No test running
+            </div>
+            <div id="testMetrics" class="mt-3">
+                <pre id="metricsOutput" style="display: none;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts
+        const charts = {
+            responseTime: new Chart(document.getElementById('responseTimeChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Response Time (ms)',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            }),
+            users: new Chart(document.getElementById('usersChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Virtual Users',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            }),
+            requestRate: new Chart(document.getElementById('requestRateChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Requests/sec',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            }),
+            errorRate: new Chart(document.getElementById('errorRateChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Error Rate (%)',
+                        data: [],
+                        borderColor: 'rgb(255, 159, 64)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            })
+        };
+
+        // Handle custom test form submission
+        document.getElementById('customTestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const testConfig = {
+                name: document.getElementById('testName').value,
+                initialUsers: parseInt(document.getElementById('initialUsers').value),
+                targetUsers: parseInt(document.getElementById('targetUsers').value),
+                duration: parseInt(document.getElementById('duration').value)
+            };
+            await runCustomTest(testConfig);
+        });
+
+        async function runCustomTest(config) {
+            const statusDiv = document.getElementById('testStatus');
+            const metricsOutput = document.getElementById('metricsOutput');
+            
+            statusDiv.className = 'alert alert-warning';
+            statusDiv.textContent = `Running custom test: ${config.name}...`;
+            metricsOutput.style.display = 'block';
+            metricsOutput.textContent = 'Test in progress...';
+
+            try {
+                const response = await fetch('/run-custom-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    statusDiv.className = 'alert alert-danger';
+                    statusDiv.textContent = `Error running custom test`;
+                    metricsOutput.textContent = data.error;
+                } else {
+                    statusDiv.className = 'alert alert-success';
+                    statusDiv.textContent = `Custom test completed!`;
+                    metricsOutput.textContent = data.output;
+                }
+            } catch (error) {
+                statusDiv.className = 'alert alert-danger';
+                statusDiv.textContent = `Error running custom test`;
+                metricsOutput.textContent = error.message;
+            }
+        }
+
+        async function runTest(scenario) {
+            const statusDiv = document.getElementById('testStatus');
+            const metricsOutput = document.getElementById('metricsOutput');
+            
+            statusDiv.className = 'alert alert-warning';
+            statusDiv.textContent = `Running ${scenario} test...`;
+            metricsOutput.style.display = 'block';
+            metricsOutput.textContent = 'Test in progress...';
+
+            try {
+                const response = await fetch('/run-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ scenario })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    statusDiv.className = 'alert alert-danger';
+                    statusDiv.textContent = `Error running ${scenario} test`;
+                    metricsOutput.textContent = data.error;
+                } else {
+                    statusDiv.className = 'alert alert-success';
+                    statusDiv.textContent = `${scenario} test completed!`;
+                    metricsOutput.textContent = data.output;
+                    updateCharts(data.metrics);
+                }
+            } catch (error) {
+                statusDiv.className = 'alert alert-danger';
+                statusDiv.textContent = `Error running ${scenario} test`;
+                metricsOutput.textContent = error.message;
+            }
+        }
+
+        function updateCharts(metrics) {
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Update Response Time Chart
+            charts.responseTime.data.labels.push(timestamp);
+            charts.responseTime.data.datasets[0].data.push(metrics.responseTime);
+            charts.responseTime.update();
+
+            // Update Users Chart
+            charts.users.data.labels.push(timestamp);
+            charts.users.data.datasets[0].data.push(metrics.virtualUsers);
+            charts.users.update();
+
+            // Update Request Rate Chart
+            charts.requestRate.data.labels.push(timestamp);
+            charts.requestRate.data.datasets[0].data.push(metrics.requestRate);
+            charts.requestRate.update();
+
+            // Update Error Rate Chart
+            charts.errorRate.data.labels.push(timestamp);
+            charts.errorRate.data.datasets[0].data.push(metrics.errorRate);
+            charts.errorRate.update();
+
+            // Keep only last 20 data points
+            if (charts.responseTime.data.labels.length > 20) {
+                charts.responseTime.data.labels.shift();
+                charts.responseTime.data.datasets[0].data.shift();
+                charts.users.data.labels.shift();
+                charts.users.data.datasets[0].data.shift();
+                charts.requestRate.data.labels.shift();
+                charts.requestRate.data.datasets[0].data.shift();
+                charts.errorRate.data.labels.shift();
+                charts.errorRate.data.datasets[0].data.shift();
+            }
+        }
+    </script>
+</body>
+</html> 

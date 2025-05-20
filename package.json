@@ -1,0 +1,12 @@
+{
+  "name": "k6-stress-test-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard for running K6 stress tests",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+} 

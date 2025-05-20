@@ -34,6 +34,24 @@ export const scenarios = {
       { duration: '1m', target: 0 },    // Ramp down to 0 users
     ],
   },
+  endurance: {
+    executor: 'ramping-vus',
+    startVUs: 0,
+    stages: [
+      { duration: '5m', target: 50 },   // Ramp up to 50 users
+      { duration: '20m', target: 50 },  // Stay at 50 users for 20 minutes
+      { duration: '5m', target: 0 },    // Ramp down to 0 users
+    ],
+  },
+  soak: {
+    executor: 'ramping-vus',
+    startVUs: 0,
+    stages: [
+      { duration: '5m', target: 25 },   // Ramp up to 25 users
+      { duration: '50m', target: 25 },  // Stay at 25 users for 50 minutes
+      { duration: '5m', target: 0 },    // Ramp down to 0 users
+    ],
+  },
 };
 
 export const thresholds = {
