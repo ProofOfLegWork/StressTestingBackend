@@ -114,7 +114,7 @@
             Checking server connection...
         </div>
         
-        <!-- Test Status - MOVED TO TOP -->
+        <!-- Test Status - First section -->
         <div class="status-panel">
             <h3>Test Status</h3>
             <div id="testStatus" class="alert alert-info">
@@ -125,30 +125,13 @@
             </div>
         </div>
         
-        <!-- Real-time Metrics - MOVED HIGHER -->
+        <!-- Debug Panel - Second section -->
         <div class="status-panel">
-            <h3>Real-time Metrics</h3>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <h5>Response Time</h5>
-                    <canvas id="responseTimeChart"></canvas>
-                </div>
-                <div class="metric-card">
-                    <h5>Virtual Users</h5>
-                    <canvas id="usersChart"></canvas>
-                </div>
-                <div class="metric-card">
-                    <h5>Request Rate</h5>
-                    <canvas id="requestRateChart"></canvas>
-                </div>
-                <div class="metric-card">
-                    <h5>Error Rate</h5>
-                    <canvas id="errorRateChart"></canvas>
-                </div>
-            </div>
+            <h3>Debug Information <button class="btn btn-sm btn-outline-secondary float-end" onclick="clearDebug()">Clear</button></h3>
+            <div id="debugOutput" class="debug-panel"></div>
         </div>
         
-        <!-- Custom Test Configuration -->
+        <!-- Custom Test Configuration - Third section -->
         <div class="custom-test-form">
             <h3>Custom Test Configuration</h3>
             <form id="customTestForm" class="row g-3">
@@ -271,10 +254,27 @@
             </div>
         </div>
         
-        <!-- Debug Panel -->
+        <!-- Real-time Metrics - MOVED TO BOTTOM -->
         <div class="status-panel">
-            <h3>Debug Information <button class="btn btn-sm btn-outline-secondary float-end" onclick="clearDebug()">Clear</button></h3>
-            <div id="debugOutput" class="debug-panel"></div>
+            <h3>Real-time Metrics</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h5>Response Time</h5>
+                    <canvas id="responseTimeChart"></canvas>
+                </div>
+                <div class="metric-card">
+                    <h5>Virtual Users</h5>
+                    <canvas id="usersChart"></canvas>
+                </div>
+                <div class="metric-card">
+                    <h5>Request Rate</h5>
+                    <canvas id="requestRateChart"></canvas>
+                </div>
+                <div class="metric-card">
+                    <h5>Error Rate</h5>
+                    <canvas id="errorRateChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
