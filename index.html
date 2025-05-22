@@ -769,21 +769,102 @@
                 // Log metrics as structured JSON
                 debugLog({action: 'updateCharts', metrics: metrics});
                 
-                // Update Response Time Chart
-                charts.responseTime.data.labels.push(timestamp);
-                charts.responseTime.data.datasets[0].data.push(metrics.responseTime);
+                // Display raw metrics for debugging
+                const metricsOutput = document.getElementById('metricsOutput');
+                if (metricsOutput) {
+                    // Add a formatted view of current metrics at the top
+                    const currentMetrics = document.createElement('div');
+                    currentMetrics.className = 'alert alert-info';
+                    currentMetrics.innerHTML = `
+                        <strong>Latest Metrics:</strong>
+                        <div>Response Time: ${metrics.responseTime.toFixed(2)} ms</div>
+                        <div>Virtual Users: ${metrics.virtualUsers}</div>
+                        <div>Request Rate: ${metrics.requestRate.toFixed(2)}/sec</div>
+                        <div>Error Rate: ${(metrics.errorRate * 100).toFixed(2)}%</div>
+                    `;
+                    
+                    // If the metrics output already has children, insert before the first child
+                    if (metricsOutput.firstChild) {
+                        metricsOutput.insertBefore(currentMetrics, metricsOutput.firstChild);
+                    } else {
+                        metricsOutput.appendChild(currentMetrics);
+                    }
+                    
+                    // Limit the number of metrics displays
+                    const metricElements = metricsOutput.querySelectorAll('.alert-info');
+                    if (metricElements.length > 5) {
+                        for (let i = 5; i < metricElements.length; i++) {
+                            metricsOutput.removeChild(metricElements[i]);
+                        }
+                    }
+                }
                 
-                // Update Users Chart
-                charts.users.data.labels.push(timestamp);
-                charts.users.data.datasets[0].data.push(metrics.virtualUsers);
+                // Ensure we have valid data before updating charts
+                const responseTime = isNaN(metrics.responseTime) ? 0 : metrics.responseTime;
+                const virtualUsers = isNaN(metrics.virtualUsers) ? 0 : metrics.virtualUsers;
+                const requestRate = isNaN(metrics.requestRate) ? 0 : metrics.requestRate;
+                const errorRate = isNaN(metrics.errorRate) ? 0 : metrics.errorRate * 100; // Convert to percentage
                 
-                // Update Request Rate Chart
-                charts.requestRate.data.labels.push(timestamp);
-                charts.requestRate.data.datasets[0].data.push(metrics.requestRate);
+                // Check if chart objects exist and are properly initialized
+                if (charts && charts.responseTime && charts.responseTime.data) {
+                    // Update Response Time Chart
+                    charts.responseTime.data.labels.push(timestamp);
+                    charts.responseTime.data.datasets[0].data.push(responseTime);
+                    
+                    // Keep only last MAX_DATA_POINTS data points
+                    if (charts.responseTime.data.labels.length > MAX_DATA_POINTS) {
+                        charts.responseTime.data.labels = charts.responseTime.data.labels.slice(-MAX_DATA_POINTS);
+                        charts.responseTime.data.datasets[0].data = charts.responseTime.data.datasets[0].data.slice(-MAX_DATA_POINTS);
+                    }
+                    charts.responseTime.update();
+                    
+                    debugLog({action: 'chartUpdated', chart: 'responseTime', value: responseTime});
+                }
                 
-                // Update Error Rate Chart
-                charts.errorRate.data.labels.push(timestamp);
-                charts.errorRate.data.datasets[0].data.push(metrics.errorRate);
+                if (charts && charts.users && charts.users.data) {
+                    // Update Users Chart
+                    charts.users.data.labels.push(timestamp);
+                    charts.users.data.datasets[0].data.push(virtualUsers);
+                    
+                    // Keep only last MAX_DATA_POINTS data points
+                    if (charts.users.data.labels.length > MAX_DATA_POINTS) {
+                        charts.users.data.labels = charts.users.data.labels.slice(-MAX_DATA_POINTS);
+                        charts.users.data.datasets[0].data = charts.users.data.datasets[0].data.slice(-MAX_DATA_POINTS);
+                    }
+                    charts.users.update();
+                    
+                    debugLog({action: 'chartUpdated', chart: 'users', value: virtualUsers});
+                }
+                
+                if (charts && charts.requestRate && charts.requestRate.data) {
+                    // Update Request Rate Chart
+                    charts.requestRate.data.labels.push(timestamp);
+                    charts.requestRate.data.datasets[0].data.push(requestRate);
+                    
+                    // Keep only last MAX_DATA_POINTS data points
+                    if (charts.requestRate.data.labels.length > MAX_DATA_POINTS) {
+                        charts.requestRate.data.labels = charts.requestRate.data.labels.slice(-MAX_DATA_POINTS);
+                        charts.requestRate.data.datasets[0].data = charts.requestRate.data.datasets[0].data.slice(-MAX_DATA_POINTS);
+                    }
+                    charts.requestRate.update();
+                    
+                    debugLog({action: 'chartUpdated', chart: 'requestRate', value: requestRate});
+                }
+                
+                if (charts && charts.errorRate && charts.errorRate.data) {
+                    // Update Error Rate Chart
+                    charts.errorRate.data.labels.push(timestamp);
+                    charts.errorRate.data.datasets[0].data.push(errorRate);
+                    
+                    // Keep only last MAX_DATA_POINTS data points
+                    if (charts.errorRate.data.labels.length > MAX_DATA_POINTS) {
+                        charts.errorRate.data.labels = charts.errorRate.data.labels.slice(-MAX_DATA_POINTS);
+                        charts.errorRate.data.datasets[0].data = charts.errorRate.data.datasets[0].data.slice(-MAX_DATA_POINTS);
+                    }
+                    charts.errorRate.update();
+                    
+                    debugLog({action: 'chartUpdated', chart: 'errorRate', value: errorRate});
+                }
 
                 // Check for rate limiting
                 const rateLimitAlert = document.getElementById('rateLimitAlert');
@@ -801,31 +882,11 @@
                     } else {
                         rateLimitSource.textContent = 'Source: Unknown';
                     }
+                    
+                    debugLog({action: 'rateLimitDetected', source: metrics.rateLimitSource, rate: metrics.rateLimitRate});
                 } else {
                     rateLimitAlert.style.display = 'none';
                 }
-
-                // Keep only last MAX_DATA_POINTS data points
-                if (charts.responseTime.data.labels.length > MAX_DATA_POINTS) {
-                    // Remove oldest data point
-                    charts.responseTime.data.labels = charts.responseTime.data.labels.slice(-MAX_DATA_POINTS);
-                    charts.responseTime.data.datasets[0].data = charts.responseTime.data.datasets[0].data.slice(-MAX_DATA_POINTS);
-                    
-                    charts.users.data.labels = charts.users.data.labels.slice(-MAX_DATA_POINTS);
-                    charts.users.data.datasets[0].data = charts.users.data.datasets[0].data.slice(-MAX_DATA_POINTS);
-                    
-                    charts.requestRate.data.labels = charts.requestRate.data.labels.slice(-MAX_DATA_POINTS);
-                    charts.requestRate.data.datasets[0].data = charts.requestRate.data.datasets[0].data.slice(-MAX_DATA_POINTS);
-                    
-                    charts.errorRate.data.labels = charts.errorRate.data.labels.slice(-MAX_DATA_POINTS);
-                    charts.errorRate.data.datasets[0].data = charts.errorRate.data.datasets[0].data.slice(-MAX_DATA_POINTS);
-                }
-                
-                // Update all charts
-                charts.responseTime.update();
-                charts.users.update();
-                charts.requestRate.update();
-                charts.errorRate.update();
                 
                 debugLog({action: 'chartsUpdated', timestamp: timestamp});
             } catch (error) {
