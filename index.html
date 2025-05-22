@@ -67,6 +67,8 @@
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 250px;
+            overflow: hidden;
         }
         .debug-panel {
             background: #f8f9fa;
@@ -335,7 +337,20 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                display: true,
+                                ticks: {
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
                     }
                 }),
                 users: new Chart(document.getElementById('usersChart'), {
@@ -351,7 +366,20 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                display: true,
+                                ticks: {
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
                     }
                 }),
                 requestRate: new Chart(document.getElementById('requestRateChart'), {
@@ -367,7 +395,20 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                display: true,
+                                ticks: {
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
                     }
                 }),
                 errorRate: new Chart(document.getElementById('errorRateChart'), {
@@ -383,7 +424,20 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                display: true,
+                                ticks: {
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
                     }
                 })
             };
@@ -513,38 +567,45 @@
         function updateCharts(metrics) {
             try {
                 const timestamp = new Date().toLocaleTimeString();
+                const MAX_DATA_POINTS = 10; // Reduce from 20 to 10 for better display
                 
                 // Update Response Time Chart
                 charts.responseTime.data.labels.push(timestamp);
                 charts.responseTime.data.datasets[0].data.push(metrics.responseTime);
-                charts.responseTime.update();
-
+                
                 // Update Users Chart
                 charts.users.data.labels.push(timestamp);
                 charts.users.data.datasets[0].data.push(metrics.virtualUsers);
-                charts.users.update();
-
+                
                 // Update Request Rate Chart
                 charts.requestRate.data.labels.push(timestamp);
                 charts.requestRate.data.datasets[0].data.push(metrics.requestRate);
-                charts.requestRate.update();
-
+                
                 // Update Error Rate Chart
                 charts.errorRate.data.labels.push(timestamp);
                 charts.errorRate.data.datasets[0].data.push(metrics.errorRate);
-                charts.errorRate.update();
 
-                // Keep only last 20 data points
-                if (charts.responseTime.data.labels.length > 20) {
-                    charts.responseTime.data.labels.shift();
-                    charts.responseTime.data.datasets[0].data.shift();
-                    charts.users.data.labels.shift();
-                    charts.users.data.datasets[0].data.shift();
-                    charts.requestRate.data.labels.shift();
-                    charts.requestRate.data.datasets[0].data.shift();
-                    charts.errorRate.data.labels.shift();
-                    charts.errorRate.data.datasets[0].data.shift();
+                // Keep only last MAX_DATA_POINTS data points
+                if (charts.responseTime.data.labels.length > MAX_DATA_POINTS) {
+                    // Remove oldest data point
+                    charts.responseTime.data.labels = charts.responseTime.data.labels.slice(-MAX_DATA_POINTS);
+                    charts.responseTime.data.datasets[0].data = charts.responseTime.data.datasets[0].data.slice(-MAX_DATA_POINTS);
+                    
+                    charts.users.data.labels = charts.users.data.labels.slice(-MAX_DATA_POINTS);
+                    charts.users.data.datasets[0].data = charts.users.data.datasets[0].data.slice(-MAX_DATA_POINTS);
+                    
+                    charts.requestRate.data.labels = charts.requestRate.data.labels.slice(-MAX_DATA_POINTS);
+                    charts.requestRate.data.datasets[0].data = charts.requestRate.data.datasets[0].data.slice(-MAX_DATA_POINTS);
+                    
+                    charts.errorRate.data.labels = charts.errorRate.data.labels.slice(-MAX_DATA_POINTS);
+                    charts.errorRate.data.datasets[0].data = charts.errorRate.data.datasets[0].data.slice(-MAX_DATA_POINTS);
                 }
+                
+                // Update all charts
+                charts.responseTime.update();
+                charts.users.update();
+                charts.requestRate.update();
+                charts.errorRate.update();
                 
                 debugLog(`Charts updated with metrics: ${JSON.stringify(metrics)}`);
             } catch (error) {
