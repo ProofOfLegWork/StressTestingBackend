@@ -1,4 +1,5 @@
-export const scenarios = {
+// Define all scenarios
+const scenariosConfig = {
   smoke: {
     executor: 'ramping-vus',
     startVUs: 0,
@@ -92,7 +93,8 @@ export const scenarios = {
   },
 };
 
-export const thresholds = {
+// Define thresholds
+const thresholdsConfig = {
   http_req_duration: ['p(95)<500'],  // 95% of requests should be below 500ms
   http_req_failed: ['rate<0.1'],     // Error rate should be below 10%
   'http_req_duration{type:static}': ['p(95)<100'],  // Static content should be faster
@@ -101,4 +103,18 @@ export const thresholds = {
   'wallet_balance_latency': ['p(95)<500'],  // 95% of balance requests should be below 500ms
   'wallet_transaction_latency': ['p(95)<1000'],  // 95% of transaction requests should be below 1000ms
   'wallet_failed_requests': ['rate<0.1'],   // Less than 10% of requests should fail
-}; 
+};
+
+// K6 expects the options export with correct format
+export default function() {
+  // Get selected scenario from environment variable or default to 'smoke'
+  const selectedScenario = __ENV.SCENARIO || 'smoke';
+  
+  // Return the configuration
+  return {
+    scenarios: {
+      [selectedScenario]: scenariosConfig[selectedScenario]
+    },
+    thresholds: thresholdsConfig
+  };
+} 

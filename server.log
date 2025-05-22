@@ -47,3 +47,16 @@
 [2025-05-22T13:56:31.050Z] Error executing wallet test: Command failed: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
 /bin/sh: docker: not found
 
+[2025-05-22T13:59:35.848Z] Starting server...
+[2025-05-22T13:59:35.850Z] Running in Docker: true
+[2025-05-22T13:59:35.854Z] Server running at http://localhost:8080
+[2025-05-22T14:05:54.960Z] Running wallet-specific test with intensity: moderate
+[2025-05-22T14:05:54.961Z] Executing wallet test command: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+[2025-05-22T14:05:55.429Z] Error executing wallet test: Command failed: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+time="2025-05-22T14:05:55Z" level=error msg="failed to load the configuration file from the local file system: couldn't parse the configuration from \"/scripts/config.js\": invalid character 'e' looking for beginning of value"
+
+[2025-05-22T14:05:56.234Z] Running wallet-specific test with intensity: moderate
+[2025-05-22T14:05:56.236Z] Executing wallet test command: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+[2025-05-22T14:05:56.474Z] Error executing wallet test: Command failed: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+time="2025-05-22T14:05:56Z" level=error msg="failed to load the configuration file from the local file system: couldn't parse the configuration from \"/scripts/config.js\": invalid character 'e' looking for beginning of value"
+
