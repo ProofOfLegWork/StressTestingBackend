@@ -36,3 +36,6 @@
 [2025-05-22T13:49:21.578Z] Error executing custom test: Command failed: docker exec k6-runner k6 run --config /scripts/custom-config-1747921761569.js /scripts/stress-test.js
 /bin/sh: docker: not found
 
+[2025-05-22T13:53:02.858Z] Starting server...
+[2025-05-22T13:53:02.861Z] Running in Docker: true
+[2025-05-22T13:53:02.866Z] Server running at http://localhost:8080
