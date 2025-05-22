@@ -1,5 +1,11 @@
 export default {
   scenarios: {
+    micro: {
+      executor: 'shared-iterations',
+      vus: 5,
+      iterations: 100,
+      maxDuration: '30s',
+    },
     smoke: {
       executor: 'ramping-vus',
       startVUs: 0,
