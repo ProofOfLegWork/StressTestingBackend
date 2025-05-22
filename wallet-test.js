@@ -57,7 +57,8 @@ function createWallet() {
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'accept': '*/*'
+      'accept': '*/*',
+      'x-internal-testing': 'true'
     }
   };
 
@@ -105,7 +106,8 @@ function getWalletBalance(walletId) {
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'accept': '*/*'
+      'accept': '*/*',
+      'x-internal-testing': 'true'
     }
   };
 
@@ -149,7 +151,8 @@ function updateWalletCoins(walletId, amount) {
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'accept': '*/*'
+      'accept': '*/*',
+      'x-internal-testing': 'true'
     }
   };
 
@@ -193,7 +196,8 @@ function updateCoinsDirectly(walletId, amount) {
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'accept': '*/*'
+      'accept': '*/*',
+      'x-internal-testing': 'true'
     }
   };
 

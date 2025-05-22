@@ -27,13 +27,21 @@ const API_PATH = '/api';
 // Test scenarios
 export default function() {
   // Test 1: Health Check
-  const healthCheck = http.get(`${BASE_URL}/health`);
+  const healthCheck = http.get(`${BASE_URL}/health`, {
+    headers: {
+      'x-internal-testing': 'true'
+    }
+  });
   check(healthCheck, {
     'health check status is 200': (r) => r.status === 200,
   });
 
   // Test 2: API Documentation
-  const apiDocs = http.get(`${BASE_URL}/api-docs/`);
+  const apiDocs = http.get(`${BASE_URL}/api-docs/`, {
+    headers: {
+      'x-internal-testing': 'true'
+    }
+  });
   check(apiDocs, {
     'api docs status is 200': (r) => r.status === 200,
   });
@@ -47,7 +55,8 @@ export default function() {
   const createWallet = http.post(`${BASE_URL}${API_PATH}/wallet/create`, walletPayload, {
     headers: {
       'Content-Type': 'application/json',
-      'accept': '*/*'
+      'accept': '*/*',
+      'x-internal-testing': 'true'
     }
   });
   
@@ -70,7 +79,8 @@ export default function() {
   const walletBalance = http.get(`${BASE_URL}${API_PATH}/wallet/${walletId}/balance`, {
     headers: {
       'Content-Type': 'application/json',
-      'accept': '*/*'
+      'accept': '*/*',
+      'x-internal-testing': 'true'
     }
   });
   check(walletBalance, {
@@ -86,7 +96,8 @@ export default function() {
   const addCoins = http.post(`${BASE_URL}${API_PATH}/add-coins`, addCoinsPayload, {
     headers: {
       'Content-Type': 'application/json',
-      'accept': '*/*'
+      'accept': '*/*',
+      'x-internal-testing': 'true'
     }
   });
   check(addCoins, {
@@ -102,7 +113,8 @@ export default function() {
   const updateCoins = http.post(`${BASE_URL}${API_PATH}/wallet/update-coins`, updateCoinsPayload, {
     headers: {
       'Content-Type': 'application/json',
-      'accept': '*/*'
+      'accept': '*/*',
+      'x-internal-testing': 'true'
     }
   });
   check(updateCoins, {
