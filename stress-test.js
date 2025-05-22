@@ -18,7 +18,7 @@ export const options = {
   },
 };
 
-// Test setup - Using host.docker.internal to connect from Docker to host
+// Test setup
 const BASE_URL = __ENV.HOSTNAME ? 'http://host.docker.internal' : 'http://localhost';
 const API_PATH = '/api';
 
@@ -36,28 +36,57 @@ export default function() {
     'api docs status is 200': (r) => r.status === 200,
   });
 
-  // Test 3: Wallet Balance API
-  const walletId = '1001'; // Using a sample wallet ID
+  // Test 3: Wallet Creation API
+  const walletPayload = JSON.stringify({
+    publicKey: `stress-test-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    coins: Math.floor(Math.random() * 1000)
+  });
+  
+  const createWallet = http.post(`${BASE_URL}${API_PATH}/wallet/create`, walletPayload, {
+    headers: {
+      'Content-Type': 'application/json',
+      'accept': '*/*'
+    }
+  });
+  
+  check(createWallet, {
+    'create wallet status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+  });
+  
+  // If wallet creation was successful, get the wallet ID
+  let walletId = '1001';  // Default wallet ID if creation fails
+  if (createWallet.status === 200 || createWallet.status === 201) {
+    try {
+      const walletResponse = JSON.parse(createWallet.body);
+      walletId = walletResponse.walletId || walletResponse.id || walletId;
+    } catch (e) {
+      console.log(`Error parsing wallet creation response: ${e.message}`);
+    }
+  }
+
+  // Test 4: Wallet Balance API
   const walletBalance = http.get(`${BASE_URL}${API_PATH}/wallet/${walletId}/balance`, {
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'accept': '*/*'
     }
   });
   check(walletBalance, {
     'wallet balance status is 200': (r) => r.status === 200,
   });
 
-  // Test 4: Wallet Transactions API
+  // Test 5: Wallet Transactions API
   const walletTransactions = http.get(`${BASE_URL}${API_PATH}/wallet/${walletId}/transactions?limit=5`, {
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'accept': '*/*'
     }
   });
   check(walletTransactions, {
     'wallet transactions status is 200': (r) => r.status === 200,
   });
 
-  // Test 5: Create Transaction API
+  // Test 6: Create Transaction API
   const payload = JSON.stringify({
     amount: 100,
     type: 'deposit',
@@ -66,7 +95,8 @@ export default function() {
   
   const createTransaction = http.post(`${BASE_URL}${API_PATH}/wallet/${walletId}/transaction`, payload, {
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'accept': '*/*'
     }
   });
   check(createTransaction, {

@@ -1,12 +1,12 @@
 # API Stress Testing Suite
 
-This repository contains K6-based stress testing scripts for the MySQL API running at http://localhost.
+This repository contains K6-based stress testing scripts for the MySQL API running at http://localhost:3000.
 
 ## API Endpoints
 
 The API endpoints being tested are:
-- API Documentation: http://localhost/api-docs/
-- Wallet API: http://localhost/api/wallet/
+- API Documentation: http://localhost:3000/api-docs/
+- Wallet API: http://localhost:3000/api/wallet/
 
 ## Prerequisites
 

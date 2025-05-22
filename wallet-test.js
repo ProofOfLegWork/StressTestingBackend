@@ -8,8 +8,9 @@ import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 const failRate = new Rate('wallet_failed_requests');
 const walletBalanceLatency = new Trend('wallet_balance_latency');
 const walletTransactionLatency = new Trend('wallet_transaction_latency');
+const walletCreationLatency = new Trend('wallet_creation_latency');
 
-// API Configuration - Using host.docker.internal to connect from Docker to host
+// API Configuration
 const BASE_URL = __ENV.HOSTNAME ? 'http://host.docker.internal' : 'http://localhost';
 const API_PATH = '/api/wallet';
 
@@ -42,6 +43,7 @@ export const options = {
   thresholds: {
     'wallet_balance_latency': ['p(95)<500'],
     'wallet_transaction_latency': ['p(95)<1000'],
+    'wallet_creation_latency': ['p(95)<1000'],
     'wallet_failed_requests': ['rate<0.1'],
     'http_req_duration': ['p(95)<1000'],
   },
@@ -52,12 +54,66 @@ function getRandomWalletId() {
   return walletIds[randomIntBetween(0, walletIds.length - 1)];
 }
 
+// Create a new wallet
+function createWallet() {
+  const url = `${BASE_URL}${API_PATH}/create`;
+  const payload = JSON.stringify({
+    publicKey: `stress-test-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    coins: randomIntBetween(0, 1000)
+  });
+  
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+      'accept': '*/*'
+    }
+  };
+
+  const startTime = new Date();
+  const response = http.post(url, payload, params);
+  const endTime = new Date();
+  
+  // Record custom metrics
+  walletCreationLatency.add(endTime - startTime);
+  
+  // Check if request was successful
+  const success = check(response, {
+    'wallet creation status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'wallet creation response has walletId': (r) => {
+      try {
+        const body = r.json();
+        return body && (body.walletId || body.id);
+      } catch (e) {
+        console.log(`Failed to parse wallet creation response: ${e.message}`);
+        return false;
+      }
+    },
+  });
+  
+  if (!success) {
+    failRate.add(1);
+    console.log(`Failed to create wallet. Status: ${response.status}, Response: ${response.body}`);
+  } else {
+    failRate.add(0);
+    try {
+      const walletData = response.json();
+      console.log(`Created wallet with ID: ${walletData.walletId || walletData.id}`);
+      return walletData.walletId || walletData.id;
+    } catch (e) {
+      console.log(`Failed to parse wallet data: ${e.message}`);
+      return null;
+    }
+  }
+  
+  return null;
+}
+
 function getWalletBalance(walletId) {
   const url = `${BASE_URL}${API_PATH}/${walletId}/balance`;
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer test-token' // Replace with actual auth if needed
+      'accept': '*/*'
     }
   };
 
@@ -71,7 +127,14 @@ function getWalletBalance(walletId) {
   // Check if request was successful
   const success = check(response, {
     'wallet balance status is 200': (r) => r.status === 200,
-    'wallet balance response has balance field': (r) => r.json().hasOwnProperty('balance'),
+    'wallet balance response has balance field': (r) => {
+      try {
+        const body = r.json();
+        return body && (body.balance !== undefined);
+      } catch (e) {
+        return false;
+      }
+    },
   });
   
   if (!success) {
@@ -89,7 +152,7 @@ function getWalletTransactions(walletId, limit = 10) {
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer test-token' // Replace with actual auth if needed
+      'accept': '*/*'
     }
   };
 
@@ -103,7 +166,14 @@ function getWalletTransactions(walletId, limit = 10) {
   // Check if request was successful
   const success = check(response, {
     'wallet transactions status is 200': (r) => r.status === 200,
-    'wallet transactions response has items': (r) => r.json().hasOwnProperty('transactions'),
+    'wallet transactions response has items': (r) => {
+      try {
+        const body = r.json();
+        return body && body.transactions;
+      } catch (e) {
+        return false;
+      }
+    },
   });
   
   if (!success) {
@@ -127,7 +197,7 @@ function createWalletTransaction(walletId, amount, type = 'deposit') {
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer test-token' // Replace with actual auth if needed
+      'accept': '*/*'
     }
   };
 
@@ -141,7 +211,14 @@ function createWalletTransaction(walletId, amount, type = 'deposit') {
   // Check if request was successful
   const success = check(response, {
     'wallet transaction status is 200 or 201': (r) => r.status === 200 || r.status === 201,
-    'wallet transaction response has transaction ID': (r) => r.json().hasOwnProperty('transactionId'),
+    'wallet transaction response has transaction ID': (r) => {
+      try {
+        const body = r.json();
+        return body && (body.transactionId || body.id);
+      } catch (e) {
+        return false;
+      }
+    },
   });
   
   if (!success) {
@@ -156,26 +233,52 @@ function createWalletTransaction(walletId, amount, type = 'deposit') {
 
 // Main test function
 export default function() {
-  const walletId = getRandomWalletId();
-  
-  group('Wallet Balance Check', function() {
-    getWalletBalance(walletId);
-  });
-  
-  sleep(0.5);
-  
-  group('Wallet Transactions History', function() {
-    getWalletTransactions(walletId, 5);
-  });
-  
-  sleep(0.5);
-  
-  group('Wallet Transaction Creation', function() {
-    // 70% deposit, 30% withdraw
-    const transactionType = Math.random() < 0.7 ? 'deposit' : 'withdraw';
-    const amount = randomIntBetween(10, 1000);
-    createWalletTransaction(walletId, amount, transactionType);
-  });
+  // Create a new wallet 25% of the time
+  if (Math.random() < 0.25) {
+    group('Wallet Creation', function() {
+      const newWalletId = createWallet();
+      
+      // Test the new wallet if creation was successful
+      if (newWalletId) {
+        sleep(0.5);
+        
+        group('New Wallet Balance Check', function() {
+          getWalletBalance(newWalletId);
+        });
+        
+        sleep(0.5);
+        
+        // Add a transaction to the new wallet
+        group('New Wallet Transaction', function() {
+          const amount = randomIntBetween(10, 1000);
+          createWalletTransaction(newWalletId, amount, 'deposit');
+        });
+      }
+    });
+  } 
+  // Use existing wallet IDs the rest of the time
+  else {
+    const walletId = getRandomWalletId();
+    
+    group('Wallet Balance Check', function() {
+      getWalletBalance(walletId);
+    });
+    
+    sleep(0.5);
+    
+    group('Wallet Transactions History', function() {
+      getWalletTransactions(walletId, 5);
+    });
+    
+    sleep(0.5);
+    
+    group('Wallet Transaction Creation', function() {
+      // 70% deposit, 30% withdraw
+      const transactionType = Math.random() < 0.7 ? 'deposit' : 'withdraw';
+      const amount = randomIntBetween(10, 1000);
+      createWalletTransaction(walletId, amount, transactionType);
+    });
+  }
   
   // Wait between user actions
   sleep(randomIntBetween(1, 3));
