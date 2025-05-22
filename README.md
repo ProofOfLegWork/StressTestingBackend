@@ -1,6 +1,12 @@
 # API Stress Testing Suite
 
-This repository contains K6-based stress testing scripts for the MySQL API running at http://localhost:3400.
+This repository contains K6-based stress testing scripts for the MySQL API running at http://localhost.
+
+## API Endpoints
+
+The API endpoints being tested are:
+- API Documentation: http://localhost/api-docs/
+- Wallet API: http://localhost/api/wallet/
 
 ## Prerequisites
 
@@ -12,6 +18,18 @@ This repository contains K6-based stress testing scripts for the MySQL API runni
 2. If using Docker (recommended):
    - Install Docker: https://docs.docker.com/get-docker/
    - Install Docker Compose: https://docs.docker.com/compose/install/
+
+## Verifying API Endpoints
+
+Before running the stress tests, verify that the API endpoints are accessible:
+
+```bash
+# From Docker container
+docker exec k6-runner k6 run /scripts/check-endpoints.js
+
+# Or locally
+k6 run check-endpoints.js
+```
 
 ## Running with Docker (Recommended)
 
@@ -83,3 +101,33 @@ The tests will output metrics including:
 Monitor your MySQL server and Nginx performance during tests:
 - MySQL: `SHOW PROCESSLIST;` and `SHOW STATUS;`
 - Nginx: Access and error logs
+
+## Running Wallet Tests
+
+You can run wallet-specific tests using the following commands:
+
+### From Docker container (recommended)
+
+```bash
+# Run wallet test with default settings
+docker exec k6-runner k6 run /scripts/wallet-test.js
+
+# Run with specific intensity levels
+docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_light /scripts/wallet-test.js
+docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_heavy /scripts/wallet-test.js
+docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_extreme /scripts/wallet-test.js
+```
+
+### Locally (if K6 is installed)
+
+```bash
+# Run wallet test with default settings
+k6 run wallet-test.js
+
+# Run with specific intensity levels
+k6 run --config config.js -e SCENARIO=wallet_light wallet-test.js
+k6 run --config config.js -e SCENARIO=wallet_moderate wallet-test.js
+k6 run --config config.js -e SCENARIO=wallet_heavy wallet-test.js
+k6 run --config config.js -e SCENARIO=wallet_extreme wallet-test.js
+```
