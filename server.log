@@ -115,3 +115,6 @@ time="2025-05-22T14:08:28Z" level=error msg="failed to load the configuration fi
 [2025-05-22T15:21:54.816Z] Running wallet-specific test with intensity: extreme
 [2025-05-22T15:21:54.818Z] Executing wallet test command: docker exec k6-runner k6 run -e SCENARIO=wallet_extreme /scripts/wallet-test.js
 [2025-05-22T15:22:14.500Z] Error executing wallet test: stdout maxBuffer length exceeded
+[2025-05-22T15:29:10.085Z] Starting server...
+[2025-05-22T15:29:10.088Z] Running in Docker: true
+[2025-05-22T15:29:10.092Z] Server running at http://localhost:8080

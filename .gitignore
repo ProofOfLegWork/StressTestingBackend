@@ -42,3 +42,4 @@ volumes/
 .DS_Store
 Thumbs.db 
 server.log
+server.log
