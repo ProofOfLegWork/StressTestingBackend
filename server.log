@@ -39,3 +39,11 @@
 [2025-05-22T13:53:02.858Z] Starting server...
 [2025-05-22T13:53:02.861Z] Running in Docker: true
 [2025-05-22T13:53:02.866Z] Server running at http://localhost:8080
+[2025-05-22T13:55:45.408Z] Starting server...
+[2025-05-22T13:55:45.413Z] Running in Docker: true
+[2025-05-22T13:55:45.419Z] Server running at http://localhost:8080
+[2025-05-22T13:56:31.034Z] Running wallet-specific test with intensity: moderate
+[2025-05-22T13:56:31.036Z] Executing wallet test command: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+[2025-05-22T13:56:31.050Z] Error executing wallet test: Command failed: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+/bin/sh: docker: not found
+

@@ -219,10 +219,11 @@ app.post('/run-wallet-test', (req, res) => {
     let command;
     
     if (isDocker) {
-        // Use predefined scenario from config.js
+        // Use Docker exec to run K6 in the k6 container
+        // Since we modified the entrypoint, we need to call k6 directly
         command = `docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=${scenario} /scripts/wallet-test.js`;
     } else {
-        // Run locally
+        // Run K6 locally
         command = `k6 run --config config.js -e SCENARIO=${scenario} wallet-test.js`;
     }
     
