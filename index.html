@@ -78,7 +78,7 @@
             margin-top: 20px;
             font-family: monospace;
             font-size: 0.9rem;
-            height: 150px;
+            height: 300px;
             overflow-y: auto;
         }
         .wallet-metrics-grid {
@@ -104,6 +104,61 @@
         #metricsOutput {
             max-height: 300px;
             overflow-y: auto;
+        }
+        
+        /* JSON Tree Styling */
+        .json-container {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            position: relative;
+            background-color: #f8f9fa;
+            border-radius: 3px;
+            padding: 5px;
+        }
+        .json-key {
+            color: #0451a5;
+        }
+        .json-value {
+            color: #09885a;
+        }
+        .json-string {
+            color: #a31515;
+        }
+        .json-boolean {
+            color: #0000ff;
+        }
+        .json-number {
+            color: #098658;
+        }
+        .json-null {
+            color: #808080;
+        }
+        .json-toggle {
+            cursor: pointer;
+            user-select: none;
+        }
+        .json-toggle:before {
+            content: '▶';
+            font-size: 0.8em;
+            display: inline-block;
+            margin-right: 5px;
+            transition: transform 0.1s;
+        }
+        .json-toggle.open:before {
+            transform: rotate(90deg);
+        }
+        .json-collapsed {
+            display: none;
+        }
+        .debug-entry {
+            border-bottom: 1px solid #eee;
+            padding: 5px 0;
+        }
+        .debug-timestamp {
+            color: #666;
+            font-size: 0.85em;
+            margin-right: 8px;
         }
     </style>
 </head>
@@ -290,8 +345,145 @@
         function debugLog(message) {
             const debugOutput = document.getElementById('debugOutput');
             const timestamp = new Date().toLocaleTimeString();
-            debugOutput.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            
+            // Create entry container
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'debug-entry';
+            
+            // Add timestamp
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'debug-timestamp';
+            timeSpan.textContent = `[${timestamp}]`;
+            entryDiv.appendChild(timeSpan);
+            
+            // Try to parse as JSON if the message is an object or JSON string
+            try {
+                let jsonData;
+                if (typeof message === 'object') {
+                    jsonData = message;
+                } else if (typeof message === 'string') {
+                    // If it looks like JSON, try to parse it
+                    if (message.trim().startsWith('{') || message.trim().startsWith('[')) {
+                        jsonData = JSON.parse(message);
+                    } else {
+                        // Plain text message - just add it directly
+                        entryDiv.appendChild(document.createTextNode(message));
+                        debugOutput.appendChild(entryDiv);
+                        debugOutput.scrollTop = debugOutput.scrollHeight;
+                        return;
+                    }
+                }
+                
+                // Create and append JSON tree
+                const jsonContainer = document.createElement('div');
+                jsonContainer.className = 'json-container';
+                jsonContainer.appendChild(renderJSON(jsonData));
+                entryDiv.appendChild(jsonContainer);
+                
+            } catch (e) {
+                // If JSON parsing fails, display as regular text
+                entryDiv.appendChild(document.createTextNode(message));
+            }
+            
+            debugOutput.appendChild(entryDiv);
             debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+        
+        // Function to render JSON as expandable tree
+        function renderJSON(data, key = null, isChild = false) {
+            const elem = document.createElement('div');
+            elem.style.paddingLeft = isChild ? '20px' : '0';
+            
+            // Handle different data types
+            const type = typeof data;
+            
+            // Null handling
+            if (data === null) {
+                if (key) {
+                    elem.innerHTML = `<span class="json-key">${key}: </span><span class="json-null">null</span>`;
+                } else {
+                    elem.innerHTML = `<span class="json-null">null</span>`;
+                }
+                return elem;
+            }
+            
+            // Array or Object
+            if (type === 'object') {
+                const isArray = Array.isArray(data);
+                const isEmpty = isArray ? data.length === 0 : Object.keys(data).length === 0;
+                
+                // Create toggle element for non-empty objects/arrays
+                if (!isEmpty) {
+                    const toggleSpan = document.createElement('span');
+                    toggleSpan.className = 'json-toggle';
+                    toggleSpan.addEventListener('click', function() {
+                        this.classList.toggle('open');
+                        const content = this.parentNode.querySelector('.json-collapsed');
+                        if (content) {
+                            content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                        }
+                    });
+                    
+                    if (key) {
+                        toggleSpan.innerHTML = `<span class="json-key">${key}: </span><span class="json-value">${isArray ? '[' : '{'}</span>`;
+                    } else {
+                        toggleSpan.innerHTML = `<span class="json-value">${isArray ? '[' : '{'}</span>`;
+                    }
+                    
+                    elem.appendChild(toggleSpan);
+                    
+                    // Create collapsed content
+                    const collapsed = document.createElement('div');
+                    collapsed.className = 'json-collapsed';
+                    collapsed.style.display = 'none';
+                    
+                    // Add children
+                    if (isArray) {
+                        data.forEach((item, index) => {
+                            collapsed.appendChild(renderJSON(item, null, true));
+                        });
+                    } else {
+                        Object.keys(data).forEach(k => {
+                            collapsed.appendChild(renderJSON(data[k], k, true));
+                        });
+                    }
+                    
+                    // Add closing bracket
+                    const closingBracket = document.createElement('div');
+                    closingBracket.innerHTML = `<span class="json-value">${isArray ? ']' : '}'}</span>`;
+                    collapsed.appendChild(closingBracket);
+                    
+                    elem.appendChild(collapsed);
+                } else {
+                    // Empty object/array
+                    if (key) {
+                        elem.innerHTML = `<span class="json-key">${key}: </span><span class="json-value">${isArray ? '[]' : '{}'}</span>`;
+                    } else {
+                        elem.innerHTML = `<span class="json-value">${isArray ? '[]' : '{}'}</span>`;
+                    }
+                }
+            } else {
+                // Primitive types (string, number, boolean)
+                let valueClass = 'json-value';
+                let formattedValue = data;
+                
+                if (type === 'string') {
+                    valueClass = 'json-string';
+                    formattedValue = `"${data}"`;
+                } else if (type === 'number') {
+                    valueClass = 'json-number';
+                } else if (type === 'boolean') {
+                    valueClass = 'json-boolean';
+                }
+                
+                if (key) {
+                    elem.innerHTML = `<span class="json-key">${key}: </span><span class="${valueClass}">${formattedValue}</span>`;
+                } else {
+                    elem.innerHTML = `<span class="${valueClass}">${formattedValue}</span>`;
+                }
+            }
+            
+            return elem;
         }
         
         function clearDebug() {
@@ -307,16 +499,16 @@
                 if (response.ok) {
                     connectionStatus.className = 'alert alert-success';
                     connectionStatus.textContent = 'Connected to server';
-                    debugLog('Server connection successful');
+                    debugLog({status: 'success', message: 'Server connection successful'});
                 } else {
                     connectionStatus.className = 'alert alert-warning';
                     connectionStatus.textContent = `Server returned status: ${response.status}`;
-                    debugLog(`Server returned status: ${response.status}`);
+                    debugLog({status: 'warning', message: `Server returned status: ${response.status}`});
                 }
             } catch (error) {
                 connectionStatus.className = 'alert alert-danger';
                 connectionStatus.textContent = `Cannot connect to server: ${error.message}`;
-                debugLog(`Connection error: ${error.message}`);
+                debugLog({status: 'error', message: `Connection error: ${error.message}`});
             }
         }
         
@@ -327,7 +519,7 @@
         let charts = {};
         
         try {
-            debugLog('Initializing charts...');
+            debugLog({action: 'initializeCharts'});
             charts = {
                 responseTime: new Chart(document.getElementById('responseTimeChart'), {
                     type: 'line',
@@ -446,9 +638,9 @@
                     }
                 })
             };
-            debugLog('Charts initialized successfully');
+            debugLog({action: 'chartInitialized', status: 'success'});
         } catch (error) {
-            debugLog(`Error initializing charts: ${error.message}`);
+            debugLog({action: 'initializeChartsError', error: error.message, stack: error.stack});
         }
 
         // Handle custom test form submission
@@ -475,7 +667,7 @@
             metricsOutput.textContent = 'Test in progress...';
 
             try {
-                debugLog(`Sending POST request to /run-custom-test`);
+                debugLog({action: 'runCustomTest', config: config});
                 const response = await fetch('/run-custom-test', {
                     method: 'POST',
                     headers: {
@@ -490,13 +682,13 @@
                 }
 
                 const data = await response.json();
-                debugLog(`Received response: ${JSON.stringify(data, null, 2).substring(0, 100)}...`);
+                debugLog({action: 'customTestResponse', responsePreview: data.output?.substring(0, 100) + '...'});
                 
                 if (data.error) {
                     statusDiv.className = 'alert alert-danger';
                     statusDiv.textContent = `Error running custom test`;
                     metricsOutput.textContent = data.error;
-                    debugLog(`Error in test response: ${data.error}`);
+                    debugLog({action: 'customTestError', error: data.error});
                 } else {
                     statusDiv.className = 'alert alert-success';
                     statusDiv.textContent = `Custom test completed!`;
@@ -504,16 +696,16 @@
                     
                     if (data.metrics) {
                         updateCharts(data.metrics);
-                        debugLog(`Updated charts with metrics`);
+                        debugLog({action: 'customTestComplete', metrics: data.metrics});
                     } else {
-                        debugLog(`No metrics received in response`);
+                        debugLog({action: 'customTestComplete', message: 'No metrics received in response'});
                     }
                 }
             } catch (error) {
                 statusDiv.className = 'alert alert-danger';
                 statusDiv.textContent = `Error running custom test`;
                 metricsOutput.textContent = error.message;
-                debugLog(`Error running custom test: ${error.message}`);
+                debugLog({action: 'customTestException', error: error.message, stack: error.stack});
             }
         }
 
@@ -527,7 +719,7 @@
             metricsOutput.textContent = 'Test in progress...';
 
             try {
-                debugLog(`Running ${scenario} test...`);
+                debugLog({action: 'runTest', scenario: scenario});
                 const response = await fetch('/run-test', {
                     method: 'POST',
                     headers: {
@@ -542,13 +734,13 @@
                 }
 
                 const data = await response.json();
-                debugLog(`Received response for ${scenario} test`);
+                debugLog({action: 'testResponse', scenario: scenario});
                 
                 if (data.error) {
                     statusDiv.className = 'alert alert-danger';
                     statusDiv.textContent = `Error running ${scenario} test`;
                     metricsOutput.textContent = data.error;
-                    debugLog(`Error in ${scenario} test: ${data.error}`);
+                    debugLog({action: 'testError', scenario: scenario, error: data.error});
                 } else {
                     statusDiv.className = 'alert alert-success';
                     statusDiv.textContent = `${scenario} test completed!`;
@@ -556,16 +748,16 @@
                     
                     if (data.metrics) {
                         updateCharts(data.metrics);
-                        debugLog(`Updated charts with metrics for ${scenario} test`);
+                        debugLog({action: 'testComplete', scenario: scenario, metrics: data.metrics});
                     } else {
-                        debugLog(`No metrics received for ${scenario} test`);
+                        debugLog({action: 'testComplete', scenario: scenario, message: 'No metrics received'});
                     }
                 }
             } catch (error) {
                 statusDiv.className = 'alert alert-danger';
                 statusDiv.textContent = `Error running ${scenario} test`;
                 metricsOutput.textContent = error.message;
-                debugLog(`Error in ${scenario} test: ${error.message}`);
+                debugLog({action: 'testException', scenario: scenario, error: error.message, stack: error.stack});
             }
         }
 
@@ -573,6 +765,9 @@
             try {
                 const timestamp = new Date().toLocaleTimeString();
                 const MAX_DATA_POINTS = 10; // Reduce from 20 to 10 for better display
+                
+                // Log metrics as structured JSON
+                debugLog({action: 'updateCharts', metrics: metrics});
                 
                 // Update Response Time Chart
                 charts.responseTime.data.labels.push(timestamp);
@@ -632,9 +827,9 @@
                 charts.requestRate.update();
                 charts.errorRate.update();
                 
-                debugLog(`Charts updated with metrics: ${JSON.stringify(metrics)}`);
+                debugLog({action: 'chartsUpdated', timestamp: timestamp});
             } catch (error) {
-                debugLog(`Error updating charts: ${error.message}`);
+                debugLog({action: 'updateCharts', error: error.message, stack: error.stack});
             }
         }
 
@@ -655,7 +850,7 @@
             metricsOutput.textContent = 'Wallet test in progress...';
 
             try {
-                debugLog(`Running wallet test with ${intensity} intensity...`);
+                debugLog({action: 'runWalletTest', intensity: intensity});
                 const response = await fetch('/run-wallet-test', {
                     method: 'POST',
                     headers: {
@@ -670,13 +865,13 @@
                 }
 
                 const data = await response.json();
-                debugLog(`Received response for wallet test`);
+                debugLog({action: 'walletTestResponse'});
                 
                 if (data.error) {
                     statusDiv.className = 'alert alert-danger';
                     statusDiv.textContent = `Error running wallet test`;
                     metricsOutput.textContent = data.error;
-                    debugLog(`Error in wallet test: ${data.error}`);
+                    debugLog({action: 'walletTestError', error: data.error});
                 } else {
                     statusDiv.className = 'alert alert-success';
                     statusDiv.textContent = `Wallet test completed!`;
@@ -685,16 +880,16 @@
                     if (data.metrics) {
                         updateWalletMetrics(data.metrics);
                         updateCharts(data.metrics);
-                        debugLog(`Updated charts with metrics for wallet test`);
+                        debugLog({action: 'walletTestComplete', metrics: data.metrics});
                     } else {
-                        debugLog(`No metrics received for wallet test`);
+                        debugLog({action: 'walletTestComplete', message: 'No metrics received'});
                     }
                 }
             } catch (error) {
                 statusDiv.className = 'alert alert-danger';
                 statusDiv.textContent = `Error running wallet test`;
                 metricsOutput.textContent = error.message;
-                debugLog(`Error in wallet test: ${error.message}`);
+                debugLog({action: 'walletTestException', error: error.message, stack: error.stack});
             }
         }
 
@@ -705,9 +900,14 @@
                 document.getElementById('walletSuccessRateValue').textContent = `${(100 - metrics.failRate).toFixed(2)}%`;
                 document.getElementById('walletTransactionRateValue').textContent = `${metrics.requestRate.toFixed(2)}/sec`;
                 
-                debugLog(`Updated wallet metrics display`);
+                debugLog({action: 'updateWalletMetrics', metrics: {
+                    balanceLatency: metrics.balanceLatency,
+                    transactionLatency: metrics.transactionLatency,
+                    successRate: (100 - metrics.failRate).toFixed(2),
+                    transactionRate: metrics.requestRate
+                }});
             } catch (error) {
-                debugLog(`Error updating wallet metrics: ${error.message}`);
+                debugLog({action: 'updateWalletMetricsError', error: error.message, stack: error.stack});
             }
         }
     </script>
