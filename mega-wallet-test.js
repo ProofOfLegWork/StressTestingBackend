@@ -1,6 +1,7 @@
 import http from 'k6/http';
 import { check, group } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
 import config from './config.js';
 
 // Custom metrics
@@ -95,4 +96,14 @@ export default function() {
   });
   
   // No sleep between iterations to maximize load
+}
+
+// Generate HTML report after test completion
+export function handleSummary(data) {
+  return {
+    "mega-test-report.html": htmlReport(data, {
+      title: "Mega Load Test Report - 5000 VUs",
+      description: "Stress testing the wallet API with 5000 concurrent users"
+    }),
+  };
 } 
