@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: k6-dashboard
+    ports:
+      - "3400:8080"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - k6-network
+      - mysql-api-network
+
+  k6:
+    image: grafana/k6:latest
+    container_name: k6-runner
+    volumes:
+      - .:/scripts
+    environment:
+      - K6_OUT=json
+    # Use tail instead of sleep for keeping container running
+    entrypoint: ["tail", "-f", "/dev/null"]
+    depends_on:
+      - web
+    networks:
+      - k6-network
+      - mysql-api-network
+
+networks:
+  k6-network:
+    driver: bridge
+  mysql-api-network:
+    external: true
+    name: mysqlapi_default 

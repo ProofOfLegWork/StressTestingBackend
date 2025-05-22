@@ -68,11 +68,47 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        .debug-panel {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            height: 150px;
+            overflow-y: auto;
+        }
+        .wallet-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .wallet-metric {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .wallet-metric h6 {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+        .wallet-metric div {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="text-center mb-4">K6 Stress Test Dashboard</h1>
+        
+        <!-- Connection Status -->
+        <div class="alert alert-info" id="connectionStatus">
+            Checking server connection...
+        </div>
         
         <!-- Custom Test Configuration -->
         <div class="custom-test-form">
@@ -147,6 +183,56 @@
             </div>
         </div>
 
+        <!-- Wallet Test Section -->
+        <div class="test-card" style="margin-top: 20px;">
+            <h3>Wallet API Stress Test</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Wallet Test Configuration</h5>
+                            <p class="card-text">This test focuses specifically on wallet API endpoints.</p>
+                            <div class="mb-3">
+                                <label for="walletTestIntensity" class="form-label">Test Intensity</label>
+                                <select class="form-select" id="walletTestIntensity">
+                                    <option value="light">Light (5 users)</option>
+                                    <option value="moderate" selected>Moderate (20 users)</option>
+                                    <option value="heavy">Heavy (50 users)</option>
+                                    <option value="extreme">Extreme (100 users)</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-success w-100" onclick="runWalletTest()">Run Wallet Test</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Wallet Test Metrics</h5>
+                            <div class="wallet-metrics-grid">
+                                <div class="wallet-metric">
+                                    <h6>Balance API Latency</h6>
+                                    <div id="balanceLatencyValue">-</div>
+                                </div>
+                                <div class="wallet-metric">
+                                    <h6>Transaction API Latency</h6>
+                                    <div id="transactionLatencyValue">-</div>
+                                </div>
+                                <div class="wallet-metric">
+                                    <h6>Success Rate</h6>
+                                    <div id="walletSuccessRateValue">-</div>
+                                </div>
+                                <div class="wallet-metric">
+                                    <h6>Transactions/sec</h6>
+                                    <div id="walletTransactionRateValue">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Real-time Metrics -->
         <div class="status-panel">
             <h3>Real-time Metrics</h3>
@@ -180,76 +266,127 @@
                 <pre id="metricsOutput" style="display: none;"></pre>
             </div>
         </div>
+        
+        <!-- Debug Panel -->
+        <div class="status-panel">
+            <h3>Debug Information <button class="btn btn-sm btn-outline-secondary float-end" onclick="clearDebug()">Clear</button></h3>
+            <div id="debugOutput" class="debug-panel"></div>
+        </div>
     </div>
 
     <script>
+        // Debug function
+        function debugLog(message) {
+            const debugOutput = document.getElementById('debugOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            debugOutput.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+        
+        function clearDebug() {
+            document.getElementById('debugOutput').innerHTML = '';
+        }
+        
+        // Check server connection
+        async function checkServerConnection() {
+            const connectionStatus = document.getElementById('connectionStatus');
+            try {
+                debugLog('Checking server connection...');
+                const response = await fetch('/');
+                if (response.ok) {
+                    connectionStatus.className = 'alert alert-success';
+                    connectionStatus.textContent = 'Connected to server';
+                    debugLog('Server connection successful');
+                } else {
+                    connectionStatus.className = 'alert alert-warning';
+                    connectionStatus.textContent = `Server returned status: ${response.status}`;
+                    debugLog(`Server returned status: ${response.status}`);
+                }
+            } catch (error) {
+                connectionStatus.className = 'alert alert-danger';
+                connectionStatus.textContent = `Cannot connect to server: ${error.message}`;
+                debugLog(`Connection error: ${error.message}`);
+            }
+        }
+        
+        // Initialize connection check
+        checkServerConnection();
+
         // Initialize charts
-        const charts = {
-            responseTime: new Chart(document.getElementById('responseTimeChart'), {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Response Time (ms)',
-                        data: [],
-                        borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            }),
-            users: new Chart(document.getElementById('usersChart'), {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Virtual Users',
-                        data: [],
-                        borderColor: 'rgb(54, 162, 235)',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            }),
-            requestRate: new Chart(document.getElementById('requestRateChart'), {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Requests/sec',
-                        data: [],
-                        borderColor: 'rgb(255, 99, 132)',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            }),
-            errorRate: new Chart(document.getElementById('errorRateChart'), {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Error Rate (%)',
-                        data: [],
-                        borderColor: 'rgb(255, 159, 64)',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
-            })
-        };
+        let charts = {};
+        
+        try {
+            debugLog('Initializing charts...');
+            charts = {
+                responseTime: new Chart(document.getElementById('responseTimeChart'), {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Response Time (ms)',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                }),
+                users: new Chart(document.getElementById('usersChart'), {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Virtual Users',
+                            data: [],
+                            borderColor: 'rgb(54, 162, 235)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                }),
+                requestRate: new Chart(document.getElementById('requestRateChart'), {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Requests/sec',
+                            data: [],
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                }),
+                errorRate: new Chart(document.getElementById('errorRateChart'), {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Error Rate (%)',
+                            data: [],
+                            borderColor: 'rgb(255, 159, 64)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                })
+            };
+            debugLog('Charts initialized successfully');
+        } catch (error) {
+            debugLog(`Error initializing charts: ${error.message}`);
+        }
 
         // Handle custom test form submission
         document.getElementById('customTestForm').addEventListener('submit', async (e) => {
@@ -260,6 +397,8 @@
                 targetUsers: parseInt(document.getElementById('targetUsers').value),
                 duration: parseInt(document.getElementById('duration').value)
             };
+            
+            debugLog(`Running custom test: ${JSON.stringify(testConfig)}`);
             await runCustomTest(testConfig);
         });
 
@@ -273,6 +412,7 @@
             metricsOutput.textContent = 'Test in progress...';
 
             try {
+                debugLog(`Sending POST request to /run-custom-test`);
                 const response = await fetch('/run-custom-test', {
                     method: 'POST',
                     headers: {
@@ -281,21 +421,36 @@
                     body: JSON.stringify(config)
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                }
+
                 const data = await response.json();
+                debugLog(`Received response: ${JSON.stringify(data, null, 2).substring(0, 100)}...`);
                 
                 if (data.error) {
                     statusDiv.className = 'alert alert-danger';
                     statusDiv.textContent = `Error running custom test`;
                     metricsOutput.textContent = data.error;
+                    debugLog(`Error in test response: ${data.error}`);
                 } else {
                     statusDiv.className = 'alert alert-success';
                     statusDiv.textContent = `Custom test completed!`;
                     metricsOutput.textContent = data.output;
+                    
+                    if (data.metrics) {
+                        updateCharts(data.metrics);
+                        debugLog(`Updated charts with metrics`);
+                    } else {
+                        debugLog(`No metrics received in response`);
+                    }
                 }
             } catch (error) {
                 statusDiv.className = 'alert alert-danger';
                 statusDiv.textContent = `Error running custom test`;
                 metricsOutput.textContent = error.message;
+                debugLog(`Error running custom test: ${error.message}`);
             }
         }
 
@@ -309,6 +464,7 @@
             metricsOutput.textContent = 'Test in progress...';
 
             try {
+                debugLog(`Running ${scenario} test...`);
                 const response = await fetch('/run-test', {
                     method: 'POST',
                     headers: {
@@ -317,58 +473,151 @@
                     body: JSON.stringify({ scenario })
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                }
+
                 const data = await response.json();
+                debugLog(`Received response for ${scenario} test`);
                 
                 if (data.error) {
                     statusDiv.className = 'alert alert-danger';
                     statusDiv.textContent = `Error running ${scenario} test`;
                     metricsOutput.textContent = data.error;
+                    debugLog(`Error in ${scenario} test: ${data.error}`);
                 } else {
                     statusDiv.className = 'alert alert-success';
                     statusDiv.textContent = `${scenario} test completed!`;
                     metricsOutput.textContent = data.output;
-                    updateCharts(data.metrics);
+                    
+                    if (data.metrics) {
+                        updateCharts(data.metrics);
+                        debugLog(`Updated charts with metrics for ${scenario} test`);
+                    } else {
+                        debugLog(`No metrics received for ${scenario} test`);
+                    }
                 }
             } catch (error) {
                 statusDiv.className = 'alert alert-danger';
                 statusDiv.textContent = `Error running ${scenario} test`;
                 metricsOutput.textContent = error.message;
+                debugLog(`Error in ${scenario} test: ${error.message}`);
             }
         }
 
         function updateCharts(metrics) {
-            const timestamp = new Date().toLocaleTimeString();
+            try {
+                const timestamp = new Date().toLocaleTimeString();
+                
+                // Update Response Time Chart
+                charts.responseTime.data.labels.push(timestamp);
+                charts.responseTime.data.datasets[0].data.push(metrics.responseTime);
+                charts.responseTime.update();
+
+                // Update Users Chart
+                charts.users.data.labels.push(timestamp);
+                charts.users.data.datasets[0].data.push(metrics.virtualUsers);
+                charts.users.update();
+
+                // Update Request Rate Chart
+                charts.requestRate.data.labels.push(timestamp);
+                charts.requestRate.data.datasets[0].data.push(metrics.requestRate);
+                charts.requestRate.update();
+
+                // Update Error Rate Chart
+                charts.errorRate.data.labels.push(timestamp);
+                charts.errorRate.data.datasets[0].data.push(metrics.errorRate);
+                charts.errorRate.update();
+
+                // Keep only last 20 data points
+                if (charts.responseTime.data.labels.length > 20) {
+                    charts.responseTime.data.labels.shift();
+                    charts.responseTime.data.datasets[0].data.shift();
+                    charts.users.data.labels.shift();
+                    charts.users.data.datasets[0].data.shift();
+                    charts.requestRate.data.labels.shift();
+                    charts.requestRate.data.datasets[0].data.shift();
+                    charts.errorRate.data.labels.shift();
+                    charts.errorRate.data.datasets[0].data.shift();
+                }
+                
+                debugLog(`Charts updated with metrics: ${JSON.stringify(metrics)}`);
+            } catch (error) {
+                debugLog(`Error updating charts: ${error.message}`);
+            }
+        }
+
+        async function runWalletTest() {
+            const statusDiv = document.getElementById('testStatus');
+            const metricsOutput = document.getElementById('metricsOutput');
+            const intensity = document.getElementById('walletTestIntensity').value;
             
-            // Update Response Time Chart
-            charts.responseTime.data.labels.push(timestamp);
-            charts.responseTime.data.datasets[0].data.push(metrics.responseTime);
-            charts.responseTime.update();
+            // Reset metrics display
+            document.getElementById('balanceLatencyValue').textContent = '-';
+            document.getElementById('transactionLatencyValue').textContent = '-';
+            document.getElementById('walletSuccessRateValue').textContent = '-';
+            document.getElementById('walletTransactionRateValue').textContent = '-';
+            
+            statusDiv.className = 'alert alert-warning';
+            statusDiv.textContent = `Running wallet test with ${intensity} intensity...`;
+            metricsOutput.style.display = 'block';
+            metricsOutput.textContent = 'Wallet test in progress...';
 
-            // Update Users Chart
-            charts.users.data.labels.push(timestamp);
-            charts.users.data.datasets[0].data.push(metrics.virtualUsers);
-            charts.users.update();
+            try {
+                debugLog(`Running wallet test with ${intensity} intensity...`);
+                const response = await fetch('/run-wallet-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ intensity })
+                });
 
-            // Update Request Rate Chart
-            charts.requestRate.data.labels.push(timestamp);
-            charts.requestRate.data.datasets[0].data.push(metrics.requestRate);
-            charts.requestRate.update();
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                }
 
-            // Update Error Rate Chart
-            charts.errorRate.data.labels.push(timestamp);
-            charts.errorRate.data.datasets[0].data.push(metrics.errorRate);
-            charts.errorRate.update();
+                const data = await response.json();
+                debugLog(`Received response for wallet test`);
+                
+                if (data.error) {
+                    statusDiv.className = 'alert alert-danger';
+                    statusDiv.textContent = `Error running wallet test`;
+                    metricsOutput.textContent = data.error;
+                    debugLog(`Error in wallet test: ${data.error}`);
+                } else {
+                    statusDiv.className = 'alert alert-success';
+                    statusDiv.textContent = `Wallet test completed!`;
+                    metricsOutput.textContent = data.output;
+                    
+                    if (data.metrics) {
+                        updateWalletMetrics(data.metrics);
+                        updateCharts(data.metrics);
+                        debugLog(`Updated charts with metrics for wallet test`);
+                    } else {
+                        debugLog(`No metrics received for wallet test`);
+                    }
+                }
+            } catch (error) {
+                statusDiv.className = 'alert alert-danger';
+                statusDiv.textContent = `Error running wallet test`;
+                metricsOutput.textContent = error.message;
+                debugLog(`Error in wallet test: ${error.message}`);
+            }
+        }
 
-            // Keep only last 20 data points
-            if (charts.responseTime.data.labels.length > 20) {
-                charts.responseTime.data.labels.shift();
-                charts.responseTime.data.datasets[0].data.shift();
-                charts.users.data.labels.shift();
-                charts.users.data.datasets[0].data.shift();
-                charts.requestRate.data.labels.shift();
-                charts.requestRate.data.datasets[0].data.shift();
-                charts.errorRate.data.labels.shift();
-                charts.errorRate.data.datasets[0].data.shift();
+        function updateWalletMetrics(metrics) {
+            try {
+                document.getElementById('balanceLatencyValue').textContent = `${metrics.balanceLatency.toFixed(2)} ms`;
+                document.getElementById('transactionLatencyValue').textContent = `${metrics.transactionLatency.toFixed(2)} ms`;
+                document.getElementById('walletSuccessRateValue').textContent = `${(100 - metrics.failRate).toFixed(2)}%`;
+                document.getElementById('walletTransactionRateValue').textContent = `${metrics.requestRate.toFixed(2)}/sec`;
+                
+                debugLog(`Updated wallet metrics display`);
+            } catch (error) {
+                debugLog(`Error updating wallet metrics: ${error.message}`);
             }
         }
     </script>
