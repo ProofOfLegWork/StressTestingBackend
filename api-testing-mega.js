@@ -62,19 +62,15 @@ function tryMultipleRequestApproaches(operation, baseUrl, path, walletId, payloa
   
   const amount = payloadData.amount || Math.floor(Math.random() * 500) + 100;
   
-  // Different URL approaches
+  // Different URL approaches - avoiding path parameters with walletId  
   const urls = [
     `${baseUrl}${path}/wallet/add-coins`,                     // Standard path
-    `${baseUrl}${path}/wallet/add-coins?walletId=${walletId}`, // Query param
-    `${baseUrl}${path}/wallet/${walletId}/add-coins`,          // Path param
-    `${baseUrl}${path}/add-coins/${walletId}`                  // Reversed path param
+    `${baseUrl}${path}/wallet/add-coins?walletId=${walletId}` // Query param
   ];
   
   if (operation === 'update') {
     urls[0] = `${baseUrl}${path}/wallet/update-coins`;
     urls[1] = `${baseUrl}${path}/wallet/update-coins?walletId=${walletId}`;
-    urls[2] = `${baseUrl}${path}/wallet/${walletId}/update-coins`;
-    urls[3] = `${baseUrl}${path}/update-coins/${walletId}`;
   }
   
   // Different payload approaches
@@ -85,13 +81,7 @@ function tryMultipleRequestApproaches(operation, baseUrl, path, walletId, payloa
     JSON.stringify({ amount: amount, wallet: { id: walletId } })         // Nested
   ];
   
-  // Different header approaches
-  const headerSets = [
-    { 'Content-Type': 'application/json', 'X-Wallet-Id': walletId, 'X-Internal-Testing': 'true' },             // Standard
-    { 'Content-Type': 'application/json', 'wallet-id': walletId, 'X-Internal-Testing': 'true' },                // No X prefix
-    { 'Content-Type': 'application/json', 'walletid': walletId, 'X-Internal-Testing': 'true' },                 // No dash
-    { 'Content-Type': 'application/json', 'Authorization': `Wallet ${walletId}`, 'X-Internal-Testing': 'true' } // Auth header
-  ];
+    // Different header approaches - focus on X-Wallet-Id variations  const headerSets = [    // Basic headers with different X-Wallet-Id casing    { 'Content-Type': 'application/json', 'X-Wallet-Id': walletId, 'X-Internal-Testing': 'true' },             // Standard    { 'Content-Type': 'application/json', 'X-WALLET-ID': walletId, 'X-Internal-Testing': 'true' },             // All caps    { 'Content-Type': 'application/json', 'x-wallet-id': walletId, 'X-Internal-Testing': 'true' },             // All lowercase    { 'Content-Type': 'application/json', 'X-Wallet-ID': walletId, 'X-Internal-Testing': 'true' },             // ID capitalized        // Add more attempts with different header names    { 'Content-Type': 'application/json', 'x-wallet-id': walletId, 'x-internal-testing': 'true' },             // All lowercase headers    { 'Content-Type': 'application/json', 'X-WALLET-ID': walletId, 'X-INTERNAL-TESTING': 'true' },             // All uppercase headers    { 'Content-Type': 'application/json', 'X-Wallet-Id': walletId.toString(), 'X-Internal-Testing': 'true' },  // Force string conversion    { 'Content-Type': 'application/json', 'walletId': walletId, 'X-Internal-Testing': 'true' }                 // Camel case  ];
   
   // Try each combination
   let bestResponse = null;
