@@ -3,12 +3,13 @@ import { check, sleep, group } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
 import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import config from './config.js';
 
 // Custom metrics
 const failRate = new Rate('wallet_failed_requests');
 const walletBalanceLatency = new Trend('wallet_balance_latency');
-const walletTransactionLatency = new Trend('wallet_transaction_latency');
 const walletCreationLatency = new Trend('wallet_creation_latency');
+const walletUpdateCoinsLatency = new Trend('wallet_update_coins_latency');
 
 // API Configuration
 const BASE_URL = __ENV.HOSTNAME ? 'http://host.docker.internal' : 'http://localhost';
@@ -26,24 +27,15 @@ const walletIds = new SharedArray('walletIds', function() {
 // Get scenario from environment or default to wallet_moderate
 const selectedScenario = __ENV.SCENARIO || 'wallet_moderate';
 
-// Import configuration options - will be loaded from config.js
+// Set options based on the selected scenario
 export const options = {
-  // Use the predefined scenario from the config file
   scenarios: {
-    wallet_test: {
-      // This placeholder will be replaced by the scenario from config.js
-      exec: 'default',
-      executor: 'ramping-vus',
-      startVUs: 1,
-      stages: [
-        { duration: '30s', target: 10 },
-      ],
-    },
+    default: config.scenarios[selectedScenario]
   },
   thresholds: {
     'wallet_balance_latency': ['p(95)<500'],
-    'wallet_transaction_latency': ['p(95)<1000'],
     'wallet_creation_latency': ['p(95)<1000'],
+    'wallet_update_coins_latency': ['p(95)<1000'],
     'wallet_failed_requests': ['rate<0.1'],
     'http_req_duration': ['p(95)<1000'],
   },
@@ -147,51 +139,10 @@ function getWalletBalance(walletId) {
   return response;
 }
 
-function getWalletTransactions(walletId, limit = 10) {
-  const url = `${BASE_URL}${API_PATH}/${walletId}/transactions?limit=${limit}`;
-  const params = {
-    headers: {
-      'Content-Type': 'application/json',
-      'accept': '*/*'
-    }
-  };
-
-  const startTime = new Date();
-  const response = http.get(url, params);
-  const endTime = new Date();
-  
-  // Record custom metrics
-  walletTransactionLatency.add(endTime - startTime);
-  
-  // Check if request was successful
-  const success = check(response, {
-    'wallet transactions status is 200': (r) => r.status === 200,
-    'wallet transactions response has items': (r) => {
-      try {
-        const body = r.json();
-        return body && body.transactions;
-      } catch (e) {
-        return false;
-      }
-    },
-  });
-  
-  if (!success) {
-    failRate.add(1);
-    console.log(`Failed to get wallet transactions for ID ${walletId}. Status: ${response.status}`);
-  } else {
-    failRate.add(0);
-  }
-  
-  return response;
-}
-
-function createWalletTransaction(walletId, amount, type = 'deposit') {
-  const url = `${BASE_URL}${API_PATH}/${walletId}/transaction`;
+function updateWalletCoins(walletId, amount) {
+  const url = `${BASE_URL}${API_PATH}/${walletId}/add-coins`;
   const payload = JSON.stringify({
-    amount: amount,
-    type: type,
-    description: `Stress test ${type} of ${amount}`
+    amount: amount
   });
   
   const params = {
@@ -206,15 +157,15 @@ function createWalletTransaction(walletId, amount, type = 'deposit') {
   const endTime = new Date();
   
   // Record custom metrics
-  walletTransactionLatency.add(endTime - startTime);
+  walletUpdateCoinsLatency.add(endTime - startTime);
   
   // Check if request was successful
   const success = check(response, {
-    'wallet transaction status is 200 or 201': (r) => r.status === 200 || r.status === 201,
-    'wallet transaction response has transaction ID': (r) => {
+    'wallet update coins status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'wallet update coins response has updated balance': (r) => {
       try {
         const body = r.json();
-        return body && (body.transactionId || body.id);
+        return body && (body.balance !== undefined);
       } catch (e) {
         return false;
       }
@@ -223,7 +174,7 @@ function createWalletTransaction(walletId, amount, type = 'deposit') {
   
   if (!success) {
     failRate.add(1);
-    console.log(`Failed to create wallet transaction for ID ${walletId}. Status: ${response.status}`);
+    console.log(`Failed to update coins for wallet ID ${walletId}. Status: ${response.status}`);
   } else {
     failRate.add(0);
   }
@@ -248,10 +199,10 @@ export default function() {
         
         sleep(0.5);
         
-        // Add a transaction to the new wallet
-        group('New Wallet Transaction', function() {
+        // Add coins to the new wallet
+        group('Add Coins to New Wallet', function() {
           const amount = randomIntBetween(10, 1000);
-          createWalletTransaction(newWalletId, amount, 'deposit');
+          updateWalletCoins(newWalletId, amount);
         });
       }
     });
@@ -266,17 +217,9 @@ export default function() {
     
     sleep(0.5);
     
-    group('Wallet Transactions History', function() {
-      getWalletTransactions(walletId, 5);
-    });
-    
-    sleep(0.5);
-    
-    group('Wallet Transaction Creation', function() {
-      // 70% deposit, 30% withdraw
-      const transactionType = Math.random() < 0.7 ? 'deposit' : 'withdraw';
+    group('Update Wallet Coins', function() {
       const amount = randomIntBetween(10, 1000);
-      createWalletTransaction(walletId, amount, transactionType);
+      updateWalletCoins(walletId, amount);
     });
   }
   

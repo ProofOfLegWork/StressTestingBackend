@@ -60,3 +60,30 @@ time="2025-05-22T14:05:55Z" level=error msg="failed to load the configuration fi
 [2025-05-22T14:05:56.474Z] Error executing wallet test: Command failed: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
 time="2025-05-22T14:05:56Z" level=error msg="failed to load the configuration file from the local file system: couldn't parse the configuration from \"/scripts/config.js\": invalid character 'e' looking for beginning of value"
 
+[2025-05-22T14:08:00.610Z] Starting server...
+[2025-05-22T14:08:00.614Z] Running in Docker: true
+[2025-05-22T14:08:00.618Z] Server running at http://localhost:8080
+[2025-05-22T14:08:07.523Z] Running wallet-specific test with intensity: moderate
+[2025-05-22T14:08:07.524Z] Executing wallet test command: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+[2025-05-22T14:08:07.784Z] Error executing wallet test: Command failed: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+time="2025-05-22T14:08:07Z" level=error msg="failed to load the configuration file from the local file system: couldn't parse the configuration from \"/scripts/config.js\": invalid character '/' looking for beginning of value"
+
+[2025-05-22T14:08:28.507Z] Running wallet-specific test with intensity: moderate
+[2025-05-22T14:08:28.508Z] Executing wallet test command: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+[2025-05-22T14:08:28.721Z] Error executing wallet test: Command failed: docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+time="2025-05-22T14:08:28Z" level=error msg="failed to load the configuration file from the local file system: couldn't parse the configuration from \"/scripts/config.js\": invalid character '/' looking for beginning of value"
+
+[2025-05-22T14:10:57.542Z] Starting server...
+[2025-05-22T14:10:57.545Z] Running in Docker: true
+[2025-05-22T14:10:57.550Z] Server running at http://localhost:8080
+[2025-05-22T14:11:19.999Z] Running wallet-specific test with intensity: moderate
+[2025-05-22T14:11:20.001Z] Executing wallet test command: docker exec k6-runner k6 run -e SCENARIO=wallet_moderate /scripts/wallet-test.js
+[2025-05-22T14:11:46.450Z] Error executing wallet test: stdout maxBuffer length exceeded
+[2025-05-22T14:14:15.177Z] Running wallet-specific test with intensity: extreme
+[2025-05-22T14:14:15.179Z] Executing wallet test command: docker exec k6-runner k6 run -e SCENARIO=wallet_extreme /scripts/wallet-test.js
+[2025-05-22T14:14:31.859Z] Error executing wallet test: stdout maxBuffer length exceeded
+[2025-05-22T14:42:58.212Z] Starting server...
+[2025-05-22T14:42:58.217Z] Running in Docker: true
+[2025-05-22T14:42:58.222Z] Server running at http://localhost:8080
+[2025-05-22T14:43:59.397Z] Running wallet-specific test with intensity: moderate
+[2025-05-22T14:43:59.399Z] Executing wallet test command: docker exec k6-runner k6 run -e SCENARIO=wallet_moderate /scripts/wallet-test.js

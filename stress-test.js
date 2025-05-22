@@ -1,17 +1,19 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
+import config from './config.js';
 
 // Custom metrics
 const errorRate = new Rate('errors');
 
+// Get scenario from environment or default to 'smoke'
+const selectedScenario = __ENV.SCENARIO || 'smoke';
+
 // Test configuration
 export const options = {
-  stages: [
-    { duration: '1m', target: 50 },  // Ramp up to 50 users
-    { duration: '3m', target: 50 },  // Stay at 50 users for 3 minutes
-    { duration: '1m', target: 0 },   // Ramp down to 0 users
-  ],
+  scenarios: {
+    default: config.scenarios[selectedScenario]
+  },
   thresholds: {
     'http_req_duration': ['p(95)<500'], // 95% of requests should be below 500ms
     'errors': ['rate<0.1'],             // Error rate should be below 10%
@@ -75,32 +77,19 @@ export default function() {
     'wallet balance status is 200': (r) => r.status === 200,
   });
 
-  // Test 5: Wallet Transactions API
-  const walletTransactions = http.get(`${BASE_URL}${API_PATH}/wallet/${walletId}/transactions?limit=5`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'accept': '*/*'
-    }
-  });
-  check(walletTransactions, {
-    'wallet transactions status is 200': (r) => r.status === 200,
-  });
-
-  // Test 6: Create Transaction API
-  const payload = JSON.stringify({
-    amount: 100,
-    type: 'deposit',
-    description: 'Stress test transaction'
+  // Test 5: Add Coins to Wallet
+  const addCoinsPayload = JSON.stringify({
+    amount: 500
   });
   
-  const createTransaction = http.post(`${BASE_URL}${API_PATH}/wallet/${walletId}/transaction`, payload, {
+  const addCoins = http.post(`${BASE_URL}${API_PATH}/wallet/${walletId}/add-coins`, addCoinsPayload, {
     headers: {
       'Content-Type': 'application/json',
       'accept': '*/*'
     }
   });
-  check(createTransaction, {
-    'create transaction status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+  check(addCoins, {
+    'add coins status is 200 or 201': (r) => r.status === 200 || r.status === 201,
   });
 
   // Add sleep between requests to prevent overwhelming the server

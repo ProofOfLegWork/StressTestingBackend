@@ -51,10 +51,10 @@ app.post('/run-test', (req, res) => {
     if (isDocker) {
         // Use Docker exec to run K6 in the k6 container
         // Since we modified the entrypoint, we need to call k6 directly
-        command = `docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=${scenario} /scripts/stress-test.js`;
+        command = `docker exec k6-runner k6 run -e SCENARIO=${scenario} /scripts/stress-test.js`;
     } else {
         // Run K6 locally
-        command = `k6 run --config config.js -e SCENARIO=${scenario} stress-test.js`;
+        command = `k6 run -e SCENARIO=${scenario} stress-test.js`;
     }
 
     log(`Executing command: ${command}`);
@@ -221,10 +221,10 @@ app.post('/run-wallet-test', (req, res) => {
     if (isDocker) {
         // Use Docker exec to run K6 in the k6 container
         // Since we modified the entrypoint, we need to call k6 directly
-        command = `docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=${scenario} /scripts/wallet-test.js`;
+        command = `docker exec k6-runner k6 run -e SCENARIO=${scenario} /scripts/wallet-test.js`;
     } else {
         // Run K6 locally
-        command = `k6 run --config config.js -e SCENARIO=${scenario} wallet-test.js`;
+        command = `k6 run -e SCENARIO=${scenario} wallet-test.js`;
     }
     
     log(`Executing wallet test command: ${command}`);
