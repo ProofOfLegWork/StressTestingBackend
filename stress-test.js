@@ -19,7 +19,8 @@ export const options = {
 };
 
 // Test setup
-const BASE_URL = 'http://localhost:3400';
+const BASE_URL = 'http://localhost:3500';
+const API_PATH = '/api';
 
 // Test scenarios
 export default function() {
@@ -35,12 +36,42 @@ export default function() {
     'api docs status is 200': (r) => r.status === 200,
   });
 
-  // Add more test scenarios based on your API endpoints
-  // Example:
-  // const getData = http.get(`${BASE_URL}/api/data`);
-  // check(getData, {
-  //   'get data status is 200': (r) => r.status === 200,
-  // });
+  // Test 3: Wallet Balance API
+  const walletId = '1001'; // Using a sample wallet ID
+  const walletBalance = http.get(`${BASE_URL}${API_PATH}/wallet/${walletId}/balance`, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  check(walletBalance, {
+    'wallet balance status is 200': (r) => r.status === 200,
+  });
+
+  // Test 4: Wallet Transactions API
+  const walletTransactions = http.get(`${BASE_URL}${API_PATH}/wallet/${walletId}/transactions?limit=5`, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  check(walletTransactions, {
+    'wallet transactions status is 200': (r) => r.status === 200,
+  });
+
+  // Test 5: Create Transaction API
+  const payload = JSON.stringify({
+    amount: 100,
+    type: 'deposit',
+    description: 'Stress test transaction'
+  });
+  
+  const createTransaction = http.post(`${BASE_URL}${API_PATH}/wallet/${walletId}/transaction`, payload, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  check(createTransaction, {
+    'create transaction status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+  });
 
   // Add sleep between requests to prevent overwhelming the server
   sleep(1);

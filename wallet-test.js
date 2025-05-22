@@ -22,24 +22,28 @@ const walletIds = new SharedArray('walletIds', function() {
   ];
 });
 
-// Test configuration from env vars or with defaults
+// Get scenario from environment or default to wallet_moderate
+const selectedScenario = __ENV.SCENARIO || 'wallet_moderate';
+
+// Import configuration options - will be loaded from config.js
 export const options = {
+  // Use the predefined scenario from the config file
   scenarios: {
-    wallet_load: {
+    wallet_test: {
+      // This placeholder will be replaced by the scenario from config.js
+      exec: 'default',
       executor: 'ramping-vus',
-      startVUs: 0,
+      startVUs: 1,
       stages: [
-        { duration: '30s', target: 100 },  // Ramp up to 100 users
-        { duration: '1m', target: 100 },   // Stay at 100 users
-        { duration: '30s', target: 0 },    // Ramp down to 0 users
+        { duration: '30s', target: 10 },
       ],
     },
   },
   thresholds: {
-    'wallet_balance_latency': ['p(95)<500'],  // 95% of balance requests should be below 500ms
-    'wallet_transaction_latency': ['p(95)<1000'],  // 95% of transaction requests should be below 1000ms
-    'wallet_failed_requests': ['rate<0.1'],   // Less than 10% of requests should fail
-    'http_req_duration': ['p(95)<1000'],      // 95% of all requests should be below 1000ms
+    'wallet_balance_latency': ['p(95)<500'],
+    'wallet_transaction_latency': ['p(95)<1000'],
+    'wallet_failed_requests': ['rate<0.1'],
+    'http_req_duration': ['p(95)<1000'],
   },
 };
 

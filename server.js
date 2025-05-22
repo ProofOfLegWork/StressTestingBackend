@@ -196,87 +196,39 @@ app.post('/run-wallet-test', (req, res) => {
     const { intensity = 'moderate' } = req.body;
     log(`Running wallet-specific test with intensity: ${intensity}`);
     
-    // Map intensity to specific test parameters
-    let vu, duration;
+    // Map intensity to specific scenario
+    let scenario;
     
     switch(intensity) {
         case 'light':
-            vu = 5;
-            duration = 1;
+            scenario = 'wallet_light';
             break;
         case 'moderate':
-            vu = 20;
-            duration = 2;
+            scenario = 'wallet_moderate';
             break;
         case 'heavy':
-            vu = 50;
-            duration = 3;
+            scenario = 'wallet_heavy';
             break;
         case 'extreme':
-            vu = 100;
-            duration = 5;
+            scenario = 'wallet_extreme';
             break;
         default:
-            vu = 10;
-            duration = 2;
-    }
-    
-    // Create custom intensity configuration
-    const intensityConfig = {
-        executor: 'ramping-vus',
-        startVUs: 0,
-        stages: [
-            { duration: `${duration/4}m`, target: vu },     // Ramp up 
-            { duration: `${duration/2}m`, target: vu },     // Hold
-            { duration: `${duration/4}m`, target: 0 }       // Ramp down
-        ]
-    };
-    
-    // Write custom scenario config
-    const timestamp = Date.now();
-    const configPath = path.join(__dirname, `wallet-config-${timestamp}.js`);
-    
-    try {
-        fs.writeFileSync(configPath, `export default {
-  scenarios: {
-    wallet_load: ${JSON.stringify(intensityConfig, null, 2)}
-  },
-  thresholds: {
-    'wallet_balance_latency': ['p(95)<500'],
-    'wallet_transaction_latency': ['p(95)<1000'],
-    'wallet_failed_requests': ['rate<0.1'],
-    'http_req_duration': ['p(95)<1000']
-  }
-}`);
-        log(`Created wallet config file at ${configPath}`);
-    } catch (fileError) {
-        log(`Error creating wallet config file: ${fileError.message}`);
-        return res.status(500).json({ error: `Error creating config file: ${fileError.message}` });
+            scenario = 'wallet_moderate';
     }
     
     let command;
-    let dockerConfigPath;
     
     if (isDocker) {
-        // Path inside k6 container
-        dockerConfigPath = `/scripts/wallet-config-${timestamp}.js`;
-        // Since we modified the entrypoint, we need to call k6 directly
-        command = `docker exec k6-runner k6 run --config ${dockerConfigPath} /scripts/wallet-test.js`;
+        // Use predefined scenario from config.js
+        command = `docker exec k6-runner k6 run --config /scripts/config.js -e SCENARIO=${scenario} /scripts/wallet-test.js`;
     } else {
-        command = `k6 run --config ${configPath} wallet-test.js`;
+        // Run locally
+        command = `k6 run --config config.js -e SCENARIO=${scenario} wallet-test.js`;
     }
     
     log(`Executing wallet test command: ${command}`);
     
     exec(command, (error, stdout, stderr) => {
-        // Clean up temporary config file
-        try {
-            fs.unlinkSync(configPath);
-            log(`Deleted wallet config file ${configPath}`);
-        } catch (unlinkError) {
-            log(`Error deleting wallet config file: ${unlinkError.message}`);
-        }
-
         if (error) {
             log(`Error executing wallet test: ${error.message}`);
             return res.status(500).json({ 
