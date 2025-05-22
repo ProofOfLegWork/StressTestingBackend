@@ -93,6 +93,22 @@ export default function() {
     'add coins status is 200 or 201': (r) => r.status === 200 || r.status === 201,
   });
 
+  // Test 6: Update Coins in Wallet
+  const updateCoinsPayload = JSON.stringify({
+    walletId: walletId,
+    amount: 1000
+  });
+  
+  const updateCoins = http.post(`${BASE_URL}${API_PATH}/wallet/update-coins`, updateCoinsPayload, {
+    headers: {
+      'Content-Type': 'application/json',
+      'accept': '*/*'
+    }
+  });
+  check(updateCoins, {
+    'update coins status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+  });
+
   // Add sleep between requests to prevent overwhelming the server
   sleep(1);
 } 

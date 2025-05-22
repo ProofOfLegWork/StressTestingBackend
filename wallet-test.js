@@ -183,6 +183,50 @@ function updateWalletCoins(walletId, amount) {
   return response;
 }
 
+function updateCoinsDirectly(walletId, amount) {
+  const url = `${BASE_URL}${API_PATH}/update-coins`;
+  const payload = JSON.stringify({
+    walletId: walletId,
+    amount: amount
+  });
+  
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+      'accept': '*/*'
+    }
+  };
+
+  const startTime = new Date();
+  const response = http.post(url, payload, params);
+  const endTime = new Date();
+  
+  // Record custom metrics
+  walletUpdateCoinsLatency.add(endTime - startTime);
+  
+  // Check if request was successful
+  const success = check(response, {
+    'wallet update coins direct status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'wallet update coins direct response has updated balance': (r) => {
+      try {
+        const body = r.json();
+        return body && (body.balance !== undefined);
+      } catch (e) {
+        return false;
+      }
+    },
+  });
+  
+  if (!success) {
+    failRate.add(1);
+    console.log(`Failed to directly update coins for wallet ID ${walletId}. Status: ${response.status}`);
+  } else {
+    failRate.add(0);
+  }
+  
+  return response;
+}
+
 // Main test function
 export default function() {
   // Create a new wallet 25% of the time
@@ -218,10 +262,18 @@ export default function() {
     
     sleep(0.5);
     
-    group('Update Wallet Coins', function() {
-      const amount = randomIntBetween(10, 1000);
-      updateWalletCoins(walletId, amount);
-    });
+    // Randomly choose between add-coins and update-coins endpoints
+    if (Math.random() < 0.7) {
+      group('Add Coins to Wallet', function() {
+        const amount = randomIntBetween(10, 1000);
+        updateWalletCoins(walletId, amount);
+      });
+    } else {
+      group('Update Coins Directly', function() {
+        const amount = randomIntBetween(100, 5000);
+        updateCoinsDirectly(walletId, amount);
+      });
+    }
   }
   
   // Wait between user actions
