@@ -9,8 +9,8 @@ const failRate = new Rate('wallet_failed_requests');
 const walletBalanceLatency = new Trend('wallet_balance_latency');
 const walletTransactionLatency = new Trend('wallet_transaction_latency');
 
-// API Configuration - Updated to correct endpoint
-const BASE_URL = 'http://localhost:3500';
+// API Configuration - Using host.docker.internal to connect from Docker to host
+const BASE_URL = __ENV.HOSTNAME ? 'http://host.docker.internal' : 'http://localhost';
 const API_PATH = '/api/wallet';
 
 // Test data - sample wallet IDs 

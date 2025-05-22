@@ -19,7 +19,7 @@ export const options = {
 };
 
 // Test setup
-const BASE_URL = 'http://localhost:3500';
+const BASE_URL = 'http://localhost';
 const API_PATH = '/api';
 
 // Test scenarios
