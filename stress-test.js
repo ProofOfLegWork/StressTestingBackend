@@ -79,10 +79,11 @@ export default function() {
 
   // Test 5: Add Coins to Wallet
   const addCoinsPayload = JSON.stringify({
+    walletId: walletId,
     amount: 500
   });
   
-  const addCoins = http.post(`${BASE_URL}${API_PATH}/wallet/${walletId}/add-coins`, addCoinsPayload, {
+  const addCoins = http.post(`${BASE_URL}${API_PATH}/add-coins`, addCoinsPayload, {
     headers: {
       'Content-Type': 'application/json',
       'accept': '*/*'

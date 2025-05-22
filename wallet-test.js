@@ -140,8 +140,9 @@ function getWalletBalance(walletId) {
 }
 
 function updateWalletCoins(walletId, amount) {
-  const url = `${BASE_URL}${API_PATH}/${walletId}/add-coins`;
+  const url = `${BASE_URL}${API_PATH}/add-coins`;
   const payload = JSON.stringify({
+    walletId: walletId,
     amount: amount
   });
   
