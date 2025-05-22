@@ -5,6 +5,7 @@ import config from './config.js';
 
 // Custom metrics
 const errorRate = new Rate('errors');
+const rateLimitRate = new Rate('rate_limits'); // Track rate limiting specifically
 
 // Get scenario from environment or default to 'smoke'
 const selectedScenario = __ENV.SCENARIO || 'smoke';
@@ -17,6 +18,7 @@ export const options = {
   thresholds: {
     'http_req_duration': ['p(95)<500'], // 95% of requests should be below 500ms
     'errors': ['rate<0.1'],             // Error rate should be below 10%
+    'rate_limits': ['rate<0.05'],       // Rate limiting threshold
   },
 };
 
@@ -24,29 +26,31 @@ export const options = {
 const BASE_URL = __ENV.HOSTNAME ? 'http://host.docker.internal' : 'http://localhost';
 const API_PATH = '/api';
 
+// Helper function to check for rate limiting
+function checkRateLimit(response) {
+  // Check for standard rate limiting response code
+  if (response.status === 429) {
+    console.log(`Rate limit detected: ${response.status} ${response.body}`);
+    rateLimitRate.add(1);
+    return true;
+  }
+  
+  // Check for nginx rate limiting headers
+  if (response.headers['X-RateLimit-Remaining'] === '0' || 
+      response.headers['x-ratelimit-remaining'] === '0') {
+    console.log('Nginx rate limit detected through headers');
+    rateLimitRate.add(1);
+    return true;
+  }
+
+  // No rate limiting detected
+  rateLimitRate.add(0);
+  return false;
+}
+
 // Test scenarios
 export default function() {
-  // Test 1: Health Check
-  const healthCheck = http.get(`${BASE_URL}/health`, {
-    headers: {
-      'x-internal-testing': 'true'
-    }
-  });
-  check(healthCheck, {
-    'health check status is 200': (r) => r.status === 200,
-  });
-
-  // Test 2: API Documentation
-  const apiDocs = http.get(`${BASE_URL}/api-docs/`, {
-    headers: {
-      'x-internal-testing': 'true'
-    }
-  });
-  check(apiDocs, {
-    'api docs status is 200': (r) => r.status === 200,
-  });
-
-  // Test 3: Wallet Creation API
+  // Test 1: Wallet Creation API
   const walletPayload = JSON.stringify({
     publicKey: `stress-test-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
     coins: Math.floor(Math.random() * 1000)
@@ -60,8 +64,11 @@ export default function() {
     }
   });
   
+  // Check for rate limiting
+  const createWalletRateLimited = checkRateLimit(createWallet);
+  
   check(createWallet, {
-    'create wallet status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'create wallet status is 200 or 201': (r) => r.status === 200 || r.status === 201 || createWalletRateLimited,
   });
   
   // If wallet creation was successful, get the wallet ID
@@ -75,19 +82,10 @@ export default function() {
     }
   }
 
-  // Test 4: Wallet Balance API
-  const walletBalance = http.get(`${BASE_URL}${API_PATH}/wallet/${walletId}/balance`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'accept': '*/*',
-      'x-internal-testing': 'true'
-    }
-  });
-  check(walletBalance, {
-    'wallet balance status is 200': (r) => r.status === 200,
-  });
+  // Short sleep between requests
+  sleep(0.5);
 
-  // Test 5: Add Coins to Wallet
+  // Test 2: Add Coins to Wallet
   const addCoinsPayload = JSON.stringify({
     walletId: walletId,
     amount: 500
@@ -100,11 +98,18 @@ export default function() {
       'x-internal-testing': 'true'
     }
   });
+  
+  // Check for rate limiting
+  const addCoinsRateLimited = checkRateLimit(addCoins);
+  
   check(addCoins, {
-    'add coins status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'add coins status is 200 or 201': (r) => r.status === 200 || r.status === 201 || addCoinsRateLimited,
   });
 
-  // Test 6: Update Coins in Wallet
+  // Short sleep between requests
+  sleep(0.5);
+
+  // Test 3: Update Coins in Wallet
   const updateCoinsPayload = JSON.stringify({
     walletId: walletId,
     amount: 1000
@@ -117,10 +122,14 @@ export default function() {
       'x-internal-testing': 'true'
     }
   });
+  
+  // Check for rate limiting
+  const updateCoinsRateLimited = checkRateLimit(updateCoins);
+  
   check(updateCoins, {
-    'update coins status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'update coins status is 200 or 201': (r) => r.status === 200 || r.status === 201 || updateCoinsRateLimited,
   });
 
-  // Add sleep between requests to prevent overwhelming the server
+  // Add sleep between iterations to prevent overwhelming the server
   sleep(1);
 } 

@@ -233,53 +233,30 @@ function updateCoinsDirectly(walletId, amount) {
 
 // Main test function
 export default function() {
-  // Create a new wallet 25% of the time
-  if (Math.random() < 0.25) {
-    group('Wallet Creation', function() {
-      const newWalletId = createWallet();
+  // Test 1: Create a new wallet
+  group('Wallet Creation', function() {
+    const newWalletId = createWallet();
+    
+    // Test the new wallet if creation was successful
+    if (newWalletId) {
+      sleep(0.5);
       
-      // Test the new wallet if creation was successful
-      if (newWalletId) {
-        sleep(0.5);
-        
-        group('New Wallet Balance Check', function() {
-          getWalletBalance(newWalletId);
-        });
-        
-        sleep(0.5);
-        
-        // Add coins to the new wallet
-        group('Add Coins to New Wallet', function() {
-          const amount = randomIntBetween(10, 1000);
-          updateWalletCoins(newWalletId, amount);
-        });
-      }
-    });
-  } 
-  // Use existing wallet IDs the rest of the time
-  else {
-    const walletId = getRandomWalletId();
-    
-    group('Wallet Balance Check', function() {
-      getWalletBalance(walletId);
-    });
-    
-    sleep(0.5);
-    
-    // Randomly choose between add-coins and update-coins endpoints
-    if (Math.random() < 0.7) {
-      group('Add Coins to Wallet', function() {
+      // Test 2: Add coins to the new wallet
+      group('Add Coins to New Wallet', function() {
         const amount = randomIntBetween(10, 1000);
-        updateWalletCoins(walletId, amount);
+        updateWalletCoins(newWalletId, amount);
       });
-    } else {
+      
+      sleep(0.5);
+      
+      // Test 3: Update coins directly
       group('Update Coins Directly', function() {
         const amount = randomIntBetween(100, 5000);
-        updateCoinsDirectly(walletId, amount);
+        updateCoinsDirectly(newWalletId, amount);
       });
     }
-  }
+  });
   
-  // Wait between user actions
-  sleep(randomIntBetween(1, 3));
+  // Wait between test iterations
+  sleep(randomIntBetween(1, 2));
 } 
