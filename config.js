@@ -94,6 +94,11 @@ export default {
         { duration: '3m', target: 100 },
         { duration: '1m', target: 0 },
       ],
+    },
+    mega: {
+      executor: 'constant-vus',
+      vus: 5000,
+      duration: '1m',
     }
   },
   thresholds: {
