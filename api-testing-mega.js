@@ -5,9 +5,9 @@ import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporte
 import config from './config.js';
 
 // Custom metrics
-const failRate = new Rate('wallet_failed_requests');
-const rateLimitRate = new Rate('wallet_rate_limits');
-const walletCreationLatency = new Trend('wallet_creation_latency');
+const failRate = new Rate('api_testing_failed_requests');
+const rateLimitRate = new Rate('api_testing_rate_limits');
+const apiLatency = new Trend('api_testing_latency');
 
 // API Configuration
 const BASE_URL = 'http://host.docker.internal';
@@ -29,10 +29,10 @@ export const options = {
     default: config.scenarios[selectedScenario]
   },
   thresholds: {
-    'wallet_creation_latency': ['p(95)<2000'],  // Higher threshold for extreme load
-    'wallet_failed_requests': ['rate<0.5'],     // Higher failure tolerance
-    'wallet_rate_limits': ['rate<0.5'],         // Higher rate limit tolerance
-    'http_req_duration': ['p(95)<2000'],        // Higher duration threshold
+    'api_testing_latency': ['p(95)<2000'],       // Higher threshold for extreme load
+    'api_testing_failed_requests': ['rate<0.5'], // Higher failure tolerance
+    'api_testing_rate_limits': ['rate<0.5'],     // Higher rate limit tolerance
+    'http_req_duration': ['p(95)<2000'],         // Higher duration threshold
   },
   // Disable default browser summary for cleaner output
   summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)'],
@@ -53,20 +53,27 @@ function checkRateLimit(response) {
 }
 
 export default function() {
-  // Generate unique wallet data
-  const walletId = `mega-test-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+  // Generate unique test ID
+  const testId = `mega-test-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
   
-  // Wallet Creation
-  group("Wallet Creation", function() {
+  // API Testing Endpoint
+  group("API Testing", function() {
     // Start timing for latency measurement
     const start = new Date();
     
     const payload = JSON.stringify({
-      publicKey: walletId,
-      coins: Math.floor(Math.random() * 1000)
+      testId: testId,
+      data: {
+        value: Math.floor(Math.random() * 1000),
+        timestamp: new Date().toISOString(),
+        metadata: {
+          source: "k6-mega-test",
+          type: "load-test"
+        }
+      }
     });
     
-    const createResponse = http.post(`${BASE_URL}${API_PATH}/wallet/create`, payload, {
+    const response = http.post(`${BASE_URL}${API_PATH}`, payload, {
       headers: {
         'Content-Type': 'application/json',
         'accept': '*/*',
@@ -76,21 +83,21 @@ export default function() {
     });
     
     // Record latency
-    walletCreationLatency.add(new Date() - start);
+    apiLatency.add(new Date() - start);
     
     // Check for rate limiting
-    const isRateLimited = checkRateLimit(createResponse);
+    const isRateLimited = checkRateLimit(response);
     
     // Record success/failure
-    const success = check(createResponse, {
-      'wallet creation status is 200 or 201': (r) => r.status === 200 || r.status === 201 || isRateLimited,
-      'wallet creation response has walletId': (r) => {
-        if (r.status !== 200 && r.status !== 201) return isRateLimited;
+    const success = check(response, {
+      'api testing status is 200': (r) => r.status === 200 || isRateLimited,
+      'api testing response is valid': (r) => {
+        if (r.status !== 200) return isRateLimited;
         try {
           const body = JSON.parse(r.body);
-          return body.walletId || body.id || isRateLimited;
+          return body.success || isRateLimited;
         } catch (e) {
-          console.log(`Failed to parse wallet creation response: ${e.message}`);
+          console.log(`Failed to parse API testing response: ${e.message}`);
           return false;
         }
       }
@@ -98,7 +105,7 @@ export default function() {
     
     if (!success) {
       failRate.add(1);
-      console.log(`Failed to create wallet. Status: ${createResponse.status}, Response: ${createResponse.body}`);
+      console.log(`Failed API testing request. Status: ${response.status}, Response: ${response.body}`);
     }
   });
   
@@ -113,14 +120,14 @@ export function handleSummary(data) {
   
   return {
     // Main report with timestamp and VU count in filename
-    [`mega-test-report-${vuCount}vu-${timestamp}.html`]: htmlReport(data, {
-      title: `Mega Load Test Report - ${vuCount} VUs`,
-      description: `Stress testing the wallet API with ${vuCount} concurrent users for ${config.scenarios.mega.duration}`
+    [`api-testing-report-${vuCount}vu-${timestamp}.html`]: htmlReport(data, {
+      title: `API Testing Mega Load Report - ${vuCount} VUs`,
+      description: `Stress testing the /api-testing/ endpoint with ${vuCount} concurrent users for ${config.scenarios.mega.duration}`
     }),
     // Standard report name for consistency
-    "mega-test-report.html": htmlReport(data, {
-      title: `Mega Load Test Report - ${vuCount} VUs`,
-      description: `Stress testing the wallet API with ${vuCount} concurrent users for ${config.scenarios.mega.duration}`
+    "api-testing-report.html": htmlReport(data, {
+      title: `API Testing Mega Load Report - ${vuCount} VUs`,
+      description: `Stress testing the /api-testing/ endpoint with ${vuCount} concurrent users for ${config.scenarios.mega.duration}`
     }),
     // Also output summary to stdout
     stdout: textSummary(data, { indent: ' ', enableColors: true }),
