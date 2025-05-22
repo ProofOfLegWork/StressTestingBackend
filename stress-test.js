@@ -18,8 +18,8 @@ export const options = {
   },
 };
 
-// Test setup
-const BASE_URL = 'http://localhost';
+// Test setup - Using host.docker.internal to connect from Docker to host
+const BASE_URL = __ENV.HOSTNAME ? 'http://host.docker.internal' : 'http://localhost';
 const API_PATH = '/api';
 
 // Test scenarios
