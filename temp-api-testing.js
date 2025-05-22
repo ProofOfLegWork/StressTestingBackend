@@ -12,7 +12,7 @@ const addCoinsLatency = new Trend('add_coins_latency');
 const updateCoinsLatency = new Trend('update_coins_latency');
 
 // API Configuration
-const BASE_URL = 'http://host.docker.internal';
+const BASE_URL = 'http://localhost';
 const API_PATH = '/api-testing';
 
 // Get scenario from environment or default to mega
@@ -54,84 +54,6 @@ function checkRateLimit(response) {
     return true;
   }
   return false;
-}
-
-// Helper function to try multiple API request approaches
-function tryMultipleRequestApproaches(operation, baseUrl, path, walletId, payloadData) {
-  console.log(`Trying multiple approaches for ${operation} with wallet ID: ${walletId}`);
-  
-  const amount = payloadData.amount || Math.floor(Math.random() * 500) + 100;
-  
-  // Different URL approaches
-  const urls = [
-    `${baseUrl}${path}/wallet/add-coins`,                     // Standard path
-    `${baseUrl}${path}/wallet/add-coins?walletId=${walletId}`, // Query param
-    `${baseUrl}${path}/wallet/${walletId}/add-coins`,          // Path param
-    `${baseUrl}${path}/add-coins/${walletId}`                  // Reversed path param
-  ];
-  
-  if (operation === 'update') {
-    urls[0] = `${baseUrl}${path}/wallet/update-coins`;
-    urls[1] = `${baseUrl}${path}/wallet/update-coins?walletId=${walletId}`;
-    urls[2] = `${baseUrl}${path}/wallet/${walletId}/update-coins`;
-    urls[3] = `${baseUrl}${path}/update-coins/${walletId}`;
-  }
-  
-  // Different payload approaches
-  const payloads = [
-    JSON.stringify({ amount: amount }),                                  // Just amount
-    JSON.stringify({ amount: amount, walletId: walletId }),              // With wallet ID
-    JSON.stringify({ amount: amount, wallet_id: walletId }),             // Snake case
-    JSON.stringify({ amount: amount, wallet: { id: walletId } })         // Nested
-  ];
-  
-  // Different header approaches
-  const headerSets = [
-    { 'Content-Type': 'application/json', 'X-Wallet-Id': walletId, 'X-Internal-Testing': 'true' },             // Standard
-    { 'Content-Type': 'application/json', 'wallet-id': walletId, 'X-Internal-Testing': 'true' },                // No X prefix
-    { 'Content-Type': 'application/json', 'walletid': walletId, 'X-Internal-Testing': 'true' },                 // No dash
-    { 'Content-Type': 'application/json', 'Authorization': `Wallet ${walletId}`, 'X-Internal-Testing': 'true' } // Auth header
-  ];
-  
-  // Try each combination
-  let bestResponse = null;
-  
-  for (let urlIndex = 0; urlIndex < urls.length; urlIndex++) {
-    for (let payloadIndex = 0; payloadIndex < payloads.length; payloadIndex++) {
-      for (let headerIndex = 0; headerIndex < headerSets.length; headerIndex++) {
-        console.log(`Trying approach: URL ${urlIndex+1}, Payload ${payloadIndex+1}, Headers ${headerIndex+1}`);
-        
-        const url = urls[urlIndex];
-        const payload = payloads[payloadIndex];
-        const headers = headerSets[headerIndex];
-        
-        console.log(`Request URL: ${url}`);
-        console.log(`Request payload: ${payload}`);
-        console.log(`Request headers: ${JSON.stringify(headers)}`);
-        
-        const response = http.post(url, payload, {
-          headers: headers,
-          timeout: '5s'
-        });
-        
-        console.log(`Response: ${response.status} - ${response.body}`);
-        
-        // Check if successful
-        if (response.status === 200 || response.status === 201) {
-          console.log(`Found successful approach for ${operation}: URL ${urlIndex+1}, Payload ${payloadIndex+1}, Headers ${headerIndex+1}`);
-          return response; // Return successful response
-        }
-        
-        // Save the first response as default
-        if (!bestResponse) {
-          bestResponse = response;
-        }
-      }
-    }
-  }
-  
-  // Return the best response (or the first one if none were successful)
-  return bestResponse;
 }
 
 export default function() {
@@ -225,8 +147,31 @@ export default function() {
     // Start timing for latency measurement
     const start = new Date();
     
-    // Try multiple approaches with a helper function
-    const response = tryMultipleRequestApproaches('add', BASE_URL, API_PATH, createdWalletId, { amount: Math.floor(Math.random() * 500) + 100 });
+    // Try adding walletId to query parameters as well
+    const addCoinsUrl = `${BASE_URL}${API_PATH}/wallet/add-coins?walletId=${createdWalletId}`;
+    
+    const payload = JSON.stringify({
+      amount: Math.floor(Math.random() * 500) + 100,
+      // Include wallet ID in payload as well in case API supports either method
+      walletId: createdWalletId
+    });
+    
+    console.log(`Add Coins request to: ${addCoinsUrl}`);
+    console.log(`Add Coins request for wallet ID: ${createdWalletId}`);
+    console.log(`Add Coins payload: ${payload}`);
+    
+    // Using /api-testing/wallet/add-coins endpoint
+    const response = http.post(addCoinsUrl, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'accept': '*/*',
+        'X-Internal-Testing': 'true',
+        'X-Wallet-Id': createdWalletId  // Add wallet ID in header
+      },
+      timeout: '5s'
+    });
+    
+    console.log(`Add Coins response: ${response.status} - ${response.body}`);
     
     // Record latency
     addCoinsLatency.add(new Date() - start);
@@ -260,8 +205,31 @@ export default function() {
     // Start timing for latency measurement
     const start = new Date();
     
-    // Try multiple approaches with a helper function
-    const response = tryMultipleRequestApproaches('update', BASE_URL, API_PATH, createdWalletId, { amount: Math.floor(Math.random() * 1000) + 200 });
+    // Try adding walletId to query parameters as well
+    const updateCoinsUrl = `${BASE_URL}${API_PATH}/wallet/update-coins?walletId=${createdWalletId}`;
+    
+    const payload = JSON.stringify({
+      amount: Math.floor(Math.random() * 1000) + 200,
+      // Include wallet ID in payload as well in case API supports either method
+      walletId: createdWalletId
+    });
+    
+    console.log(`Update Coins request to: ${updateCoinsUrl}`);
+    console.log(`Update Coins request for wallet ID: ${createdWalletId}`);
+    console.log(`Update Coins payload: ${payload}`);
+    
+    // Using /api-testing/wallet/update-coins endpoint
+    const response = http.post(updateCoinsUrl, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'accept': '*/*',
+        'X-Internal-Testing': 'true',
+        'X-Wallet-Id': createdWalletId  // Add wallet ID in header
+      },
+      timeout: '5s'
+    });
+    
+    console.log(`Update Coins response: ${response.status} - ${response.body}`);
     
     // Record latency
     updateCoinsLatency.add(new Date() - start);
