@@ -122,6 +122,11 @@
             <div id="testStatus" class="alert alert-info">
                 No test running
             </div>
+            <!-- Add Rate Limiting Alert Section -->
+            <div id="rateLimitAlert" class="alert alert-warning" style="display: none;">
+                <strong>Rate Limiting Detected!</strong> <span id="rateLimitSource"></span>
+                <div>Rate: <span id="rateLimitRate">0</span>%</div>
+            </div>
             <div id="testMetrics" class="mt-3">
                 <pre id="metricsOutput" style="display: none;"></pre>
             </div>
@@ -584,6 +589,26 @@
                 // Update Error Rate Chart
                 charts.errorRate.data.labels.push(timestamp);
                 charts.errorRate.data.datasets[0].data.push(metrics.errorRate);
+
+                // Check for rate limiting
+                const rateLimitAlert = document.getElementById('rateLimitAlert');
+                const rateLimitSource = document.getElementById('rateLimitSource');
+                const rateLimitRate = document.getElementById('rateLimitRate');
+                
+                if (metrics.rateLimitRate && metrics.rateLimitRate > 0) {
+                    rateLimitAlert.style.display = 'block';
+                    rateLimitRate.textContent = (metrics.rateLimitRate * 100).toFixed(2);
+                    
+                    if (metrics.rateLimitSource === 'nginx') {
+                        rateLimitSource.textContent = 'Source: Nginx rate limiting';
+                    } else if (metrics.rateLimitSource === 'api') {
+                        rateLimitSource.textContent = 'Source: API rate limiting';
+                    } else {
+                        rateLimitSource.textContent = 'Source: Unknown';
+                    }
+                } else {
+                    rateLimitAlert.style.display = 'none';
+                }
 
                 // Keep only last MAX_DATA_POINTS data points
                 if (charts.responseTime.data.labels.length > MAX_DATA_POINTS) {

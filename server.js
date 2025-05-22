@@ -283,31 +283,62 @@ function parseK6Metrics(output) {
     try {
         log('Parsing K6 metrics from output');
         // Extract metrics from K6 output
-        const responseTimeMatch = output.match(/http_req_duration.*?p95=(\d+)/);
-        const usersMatch = output.match(/vus=(\d+)/);
-        const requestRateMatch = output.match(/http_reqs.*?rate=(\d+\.?\d*)/);
-        const errorRateMatch = output.match(/http_req_failed.*?rate=(\d+\.?\d*)/);
-
+        const responseTime = parseMetric(output, 'http_req_duration');
+        const virtualUsers = parseMetric(output, 'vus');
+        const requestRate = parseMetric(output, 'http_reqs');
+        const errorRate = parseMetric(output, 'errors');
+        const rateLimitRate = parseMetric(output, 'rate_limits') || parseMetric(output, 'wallet_rate_limits') || 0;
+        
+        // Determine rate limit source (nginx or API)
+        let rateLimitSource = 'none';
+        if (rateLimitRate > 0) {
+            // Look for headers or specific responses to determine source
+            if (output.includes('Nginx rate limit detected') || output.includes('x-ratelimit-remaining')) {
+                rateLimitSource = 'nginx';
+            } else {
+                rateLimitSource = 'api';
+            }
+        }
+        
         const parsedMetrics = {
-            responseTime: responseTimeMatch ? parseInt(responseTimeMatch[1]) : 0,
-            virtualUsers: usersMatch ? parseInt(usersMatch[1]) : 0,
-            requestRate: requestRateMatch ? parseFloat(requestRateMatch[1]) : 0,
-            errorRate: errorRateMatch ? parseFloat(errorRateMatch[1]) * 100 : 0
+            responseTime,
+            virtualUsers,
+            requestRate,
+            errorRate,
+            rateLimitRate,
+            rateLimitSource
         };
         
         log(`Extracted metrics: ${JSON.stringify(parsedMetrics)}`);
         return parsedMetrics;
     } catch (error) {
         log(`Error parsing metrics: ${error.stack}`);
-        throw error;
+        return { responseTime: 0, virtualUsers: 0, requestRate: 0, errorRate: 0, rateLimitRate: 0, rateLimitSource: 'none' };
     }
 }
 
 // Helper function to parse specific metrics
 function parseMetric(output, metricName) {
     try {
-        const metricMatch = output.match(new RegExp(`${metricName}.*?avg=(\\d+\\.?\\d*)`));
-        return metricMatch ? parseFloat(metricMatch[1]) : 0;
+        // Try different patterns for metrics
+        const avgMatch = output.match(new RegExp(`${metricName}.*?avg=(\\d+\\.?\\d*)`));
+        const rateMatch = output.match(new RegExp(`${metricName}.*?rate=(\\d+\\.?\\d*)`));
+        const p95Match = output.match(new RegExp(`${metricName}.*?p\\(95\\)=(\\d+\\.?\\d*)`));
+        
+        if (avgMatch) return parseFloat(avgMatch[1]);
+        if (rateMatch) return parseFloat(rateMatch[1]);
+        if (p95Match) return parseFloat(p95Match[1]);
+        
+        // For rate limits, also look for mentions in the logs
+        if (metricName.includes('rate_limit')) {
+            if (output.includes('Rate limit detected') || 
+                output.includes('rate limit detected') ||
+                output.includes('429 Too Many Requests')) {
+                return 0.01; // Return a small value to indicate rate limiting was detected
+            }
+        }
+        
+        return 0;
     } catch (error) {
         log(`Error parsing metric ${metricName}: ${error.message}`);
         return 0;

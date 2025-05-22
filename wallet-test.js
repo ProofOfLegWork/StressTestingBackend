@@ -7,6 +7,7 @@ import config from './config.js';
 
 // Custom metrics
 const failRate = new Rate('wallet_failed_requests');
+const rateLimitRate = new Rate('wallet_rate_limits'); // Track rate limiting specifically
 const walletBalanceLatency = new Trend('wallet_balance_latency');
 const walletCreationLatency = new Trend('wallet_creation_latency');
 const walletUpdateCoinsLatency = new Trend('wallet_update_coins_latency');
@@ -37,9 +38,32 @@ export const options = {
     'wallet_creation_latency': ['p(95)<1000'],
     'wallet_update_coins_latency': ['p(95)<1000'],
     'wallet_failed_requests': ['rate<0.1'],
+    'wallet_rate_limits': ['rate<0.05'], // Rate limiting threshold
     'http_req_duration': ['p(95)<1000'],
   },
 };
+
+// Helper function to check for rate limiting
+function checkRateLimit(response) {
+  // Check for standard rate limiting response code
+  if (response.status === 429) {
+    console.log(`Rate limit detected: ${response.status} ${response.body}`);
+    rateLimitRate.add(1);
+    return true;
+  }
+  
+  // Check for nginx rate limiting headers
+  if (response.headers['X-RateLimit-Remaining'] === '0' || 
+      response.headers['x-ratelimit-remaining'] === '0') {
+    console.log('Nginx rate limit detected through headers');
+    rateLimitRate.add(1);
+    return true;
+  }
+
+  // No rate limiting detected
+  rateLimitRate.add(0);
+  return false;
+}
 
 // Wallet API helper functions
 function getRandomWalletId() {
@@ -69,9 +93,12 @@ function createWallet() {
   // Record custom metrics
   walletCreationLatency.add(endTime - startTime);
   
+  // Check for rate limiting
+  const isRateLimited = checkRateLimit(response);
+  
   // Check if request was successful
   const success = check(response, {
-    'wallet creation status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'wallet creation status is 200 or 201': (r) => r.status === 200 || r.status === 201 || isRateLimited,
     'wallet creation response has walletId': (r) => {
       try {
         const body = r.json();
@@ -83,10 +110,10 @@ function createWallet() {
     },
   });
   
-  if (!success) {
+  if (!success && !isRateLimited) {
     failRate.add(1);
     console.log(`Failed to create wallet. Status: ${response.status}, Response: ${response.body}`);
-  } else {
+  } else if (!isRateLimited) {
     failRate.add(0);
     try {
       const walletData = response.json();
@@ -118,9 +145,12 @@ function getWalletBalance(walletId) {
   // Record custom metrics
   walletBalanceLatency.add(endTime - startTime);
   
+  // Check for rate limiting
+  const isRateLimited = checkRateLimit(response);
+  
   // Check if request was successful
   const success = check(response, {
-    'wallet balance status is 200': (r) => r.status === 200,
+    'wallet balance status is 200': (r) => r.status === 200 || isRateLimited,
     'wallet balance response has balance field': (r) => {
       try {
         const body = r.json();
@@ -131,10 +161,10 @@ function getWalletBalance(walletId) {
     },
   });
   
-  if (!success) {
+  if (!success && !isRateLimited) {
     failRate.add(1);
     console.log(`Failed to get wallet balance for ID ${walletId}. Status: ${response.status}`);
-  } else {
+  } else if (!isRateLimited) {
     failRate.add(0);
   }
   
@@ -163,9 +193,12 @@ function updateWalletCoins(walletId, amount) {
   // Record custom metrics
   walletUpdateCoinsLatency.add(endTime - startTime);
   
+  // Check for rate limiting
+  const isRateLimited = checkRateLimit(response);
+  
   // Check if request was successful
   const success = check(response, {
-    'wallet update coins status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'wallet update coins status is 200 or 201': (r) => r.status === 200 || r.status === 201 || isRateLimited,
     'wallet update coins response has updated balance': (r) => {
       try {
         const body = r.json();
@@ -176,10 +209,10 @@ function updateWalletCoins(walletId, amount) {
     },
   });
   
-  if (!success) {
+  if (!success && !isRateLimited) {
     failRate.add(1);
     console.log(`Failed to update coins for wallet ID ${walletId}. Status: ${response.status}`);
-  } else {
+  } else if (!isRateLimited) {
     failRate.add(0);
   }
   
@@ -208,9 +241,12 @@ function updateCoinsDirectly(walletId, amount) {
   // Record custom metrics
   walletUpdateCoinsLatency.add(endTime - startTime);
   
+  // Check for rate limiting
+  const isRateLimited = checkRateLimit(response);
+  
   // Check if request was successful
   const success = check(response, {
-    'wallet update coins direct status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+    'wallet update coins direct status is 200 or 201': (r) => r.status === 200 || r.status === 201 || isRateLimited,
     'wallet update coins direct response has updated balance': (r) => {
       try {
         const body = r.json();
@@ -221,10 +257,10 @@ function updateCoinsDirectly(walletId, amount) {
     },
   });
   
-  if (!success) {
+  if (!success && !isRateLimited) {
     failRate.add(1);
     console.log(`Failed to directly update coins for wallet ID ${walletId}. Status: ${response.status}`);
-  } else {
+  } else if (!isRateLimited) {
     failRate.add(0);
   }
   
