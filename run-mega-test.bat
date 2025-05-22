@@ -11,11 +11,21 @@ docker cp mega-wallet-test.js k6-runner:/scripts/mega-wallet-test.js
 echo Starting test...  
 docker exec k6-runner k6 run -e SCENARIO=mega /scripts/mega-wallet-test.js  
   
-echo Copying HTML report from container...  
-docker cp k6-runner:/scripts/mega-test-report.html ./mega-test-report.html  
+echo Copying HTML reports from container...  
+if not exist "reports" mkdir reports  
+docker cp k6-runner:/scripts/mega-test-report.html ./reports/mega-test-report.html  
+echo Copied standard report to ./reports/mega-test-report.html  
+  
+REM Try to get any timestamped reports  
+echo Looking for timestamped reports...  
+docker exec k6-runner ls /scripts/mega-test-report-*.html 2>nul  
+if %ERRORLEVEL% EQU 0 (  
+    docker cp k6-runner:/scripts/. ./reports/  
+    echo Additional reports copied to reports folder  
+)  
   
 echo Test completed!  
-echo HTML report saved to mega-test-report.html  
+echo HTML reports saved to the ./reports directory  
 echo.  
 echo Press any key to exit...  
 pause 
