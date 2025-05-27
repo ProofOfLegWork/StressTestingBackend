@@ -56,79 +56,79 @@ function checkRateLimit(response) {
   return false;
 }
 
+// Helper function to validate wallet ID
+function validateWalletId(walletId, context) {
+  if (!walletId) {
+    console.error(`❌ ERROR: Missing wallet ID in ${context}`);
+    return false;
+  }
+  
+  if (typeof walletId !== 'string') {
+    console.error(`❌ ERROR: Wallet ID in ${context} is not a string: ${typeof walletId}`);
+    return false;
+  }
+  
+  if (walletId.trim() === '') {
+    console.error(`❌ ERROR: Empty wallet ID in ${context}`);
+    return false;
+  }
+  
+  console.log(`✅ Valid wallet ID in ${context}: ${walletId}`);
+  return true;
+}
+
 // Helper function to try multiple API request approaches
 function tryMultipleRequestApproaches(operation, baseUrl, path, walletId, payloadData) {
-  console.log(`Trying multiple approaches for ${operation} with wallet ID: ${walletId}`);
+  // Validate wallet ID before proceeding
+  if (!validateWalletId(walletId, `${operation} operation`)) {
+    console.error(`❌ CRITICAL: Attempting ${operation} with invalid wallet ID: ${walletId}`);
+    // Return a mock response with error
+    return {
+      status: 400,
+      body: JSON.stringify({ error: `Invalid wallet ID in request: ${walletId}` }),
+      headers: {}
+    };
+  }
+  
+  console.log(`Trying ${operation} with wallet ID: ${walletId}`);
   
   const amount = payloadData.amount || Math.floor(Math.random() * 500) + 100;
   
-  // Different URL approaches - avoiding path parameters with walletId  
-  const urls = [
-    `${baseUrl}${path}/wallet/add-coins`,                     // Standard path
-    `${baseUrl}${path}/wallet/add-coins?walletId=${walletId}` // Query param
-  ];
+  // Only use the standard path without query parameters
+  const url = operation === 'update' 
+    ? `${baseUrl}${path}/wallet/update-coins`
+    : `${baseUrl}${path}/wallet/add-coins`;
   
-  if (operation === 'update') {
-    urls[0] = `${baseUrl}${path}/wallet/update-coins`;
-    urls[1] = `${baseUrl}${path}/wallet/update-coins?walletId=${walletId}`;
+  // Always include walletId in payload
+  const payload = JSON.stringify({ 
+    amount: amount, 
+    walletId: walletId 
+  });
+  
+  // Use only the exact X-Wallet-Id header
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Wallet-Id': walletId,
+    'X-Internal-Testing': 'true'
+  };
+  
+  console.log(`Request URL: ${url}`);
+  console.log(`Request payload: ${payload}`);
+  console.log(`Request headers: ${JSON.stringify(headers)}`);
+  
+  // Double check wallet ID is in headers
+  if (!headers['X-Wallet-Id'] || headers['X-Wallet-Id'] !== walletId) {
+    console.error(`❌ ERROR: X-Wallet-Id header mismatch! Expected: ${walletId}, Actual: ${headers['X-Wallet-Id']}`);
   }
   
-  // Different payload approaches
-  const payloads = [
-    JSON.stringify({ amount: amount }),                                  // Just amount
-    JSON.stringify({ amount: amount, walletId: walletId }),              // With wallet ID
-    JSON.stringify({ amount: amount, wallet_id: walletId }),             // Snake case
-    JSON.stringify({ amount: amount, wallet: { id: walletId } })         // Nested
-  ];
+  const response = http.post(url, payload, {
+    headers: headers,
+    timeout: '5s'
+  });
   
-  // Different header approaches - focus on X-Wallet-Id variations
-  const headerSets = [
-    // Basic headers with different X-Wallet-Id casing
-    { 'Content-Type': 'application/json', 'X-Wallet-Id': walletId, 'X-Internal-Testing': 'true' },        // Standard
-    { 'Content-Type': 'application/json', 'X-WALLET-ID': walletId, 'X-Internal-Testing': 'true' },        // All caps
-    { 'Content-Type': 'application/json', 'x-wallet-id': walletId, 'X-Internal-Testing': 'true' },        // All lowercase
-    { 'Content-Type': 'application/json', 'X-Wallet-ID': walletId, 'X-Internal-Testing': 'true' },        // ID capitalized
-  ];
+  console.log(`Response: ${response.status} - ${response.body}`);
   
-  // Try each combination
-  let bestResponse = null;
-  
-  for (let urlIndex = 0; urlIndex < urls.length; urlIndex++) {
-    for (let payloadIndex = 0; payloadIndex < payloads.length; payloadIndex++) {
-      for (let headerIndex = 0; headerIndex < headerSets.length; headerIndex++) {
-        console.log(`Trying approach: URL ${urlIndex+1}, Payload ${payloadIndex+1}, Headers ${headerIndex+1}`);
-        
-        const url = urls[urlIndex];
-        const payload = payloads[payloadIndex];
-        const headers = headerSets[headerIndex];
-        
-        console.log(`Request URL: ${url}`);
-        console.log(`Request payload: ${payload}`);
-        console.log(`Request headers: ${JSON.stringify(headers)}`);
-        
-        const response = http.post(url, payload, {
-          headers: headers,
-          timeout: '5s'
-        });
-        
-        console.log(`Response: ${response.status} - ${response.body}`);
-        
-        // Check if successful
-        if (response.status === 200 || response.status === 201) {
-          console.log(`Found successful approach for ${operation}: URL ${urlIndex+1}, Payload ${payloadIndex+1}, Headers ${headerIndex+1}`);
-          return response; // Return successful response
-        }
-        
-        // Save the first response as default
-        if (!bestResponse) {
-          bestResponse = response;
-        }
-      }
-    }
-  }
-  
-  // Return the best response (or the first one if none were successful)
-  return bestResponse;
+  return response;
 }
 
 export default function() {
@@ -144,15 +144,19 @@ export default function() {
     
     const payload = JSON.stringify({
       publicKey: walletId,
+      walletId: walletId,  // Include wallet ID explicitly
       coins: Math.floor(Math.random() * 1000)
     });
+    
+    console.log(`Wallet creation payload: ${payload}`);
     
     // Using /api-testing/wallet/create endpoint for wallet creation
     const response = http.post(`${BASE_URL}${API_PATH}/wallet/create`, payload, {
       headers: {
         'Content-Type': 'application/json',
         'accept': '*/*',
-        'X-Internal-Testing': 'true'
+        'X-Internal-Testing': 'true',
+        'X-Wallet-Id': walletId  // Only use the exact X-Wallet-Id header
       },
       timeout: '5s'
     });
@@ -175,29 +179,29 @@ export default function() {
           if (body.walletId) {
             createdWalletId = body.walletId;
             console.log(`Using walletId: ${createdWalletId}`);
-            return true;
+            return validateWalletId(createdWalletId, 'wallet creation response (walletId)');
           } else if (body.id) {
             createdWalletId = body.id;
             console.log(`Using id: ${createdWalletId}`);
-            return true;
+            return validateWalletId(createdWalletId, 'wallet creation response (id)');
           } else if (body.publicKeyHash) {
             createdWalletId = body.publicKeyHash;
             console.log(`Using publicKeyHash as ID: ${createdWalletId}`);
-            return true;
+            return validateWalletId(createdWalletId, 'wallet creation response (publicKeyHash)');
           } else if (body.success && body.message && body.message.includes("created")) {
             // Extract ID from success message if possible
             const idMatch = body.message.match(/ID:? ([a-zA-Z0-9]+)/i);
             if (idMatch && idMatch[1]) {
               createdWalletId = idMatch[1];
               console.log(`Extracted ID from message: ${createdWalletId}`);
-              return true;
+              return validateWalletId(createdWalletId, 'wallet creation message');
             }
           }
           
-          console.log(`Could not find wallet ID in response: ${JSON.stringify(body)}`);
+          console.error(`❌ CRITICAL: Could not find wallet ID in response: ${JSON.stringify(body)}`);
           return isRateLimited;
         } catch (e) {
-          console.log(`Failed to parse wallet creation response: ${e.message}`);
+          console.error(`❌ CRITICAL: Failed to parse wallet creation response: ${e.message}`);
           return false;
         }
       }
@@ -205,17 +209,22 @@ export default function() {
     
     if (!success) {
       failRate.add(1);
-      console.log(`Failed wallet creation. Status: ${response.status}, Response: ${response.body}`);
+      console.error(`❌ Failed wallet creation. Status: ${response.status}, Response: ${response.body}`);
     }
   });
   
-  // Use a default wallet ID if creation failed
+  // Use a default wallet ID if creation failed, but add a warning
   if (!createdWalletId) {
     createdWalletId = '1001';
-    console.log(`Using default wallet ID: ${createdWalletId}`);
+    console.error(`❌ WARNING: Using default wallet ID: ${createdWalletId} - this may cause failures!`);
   }
   
   console.log(`Final wallet ID for subsequent operations: ${createdWalletId}`);
+  
+  // Final validation before proceeding with other operations
+  if (!validateWalletId(createdWalletId, 'before operations')) {
+    console.error(`❌ CRITICAL: Invalid wallet ID before operations. This will likely cause all operations to fail.`);
+  }
   
   // 2. Add Coins to Wallet
   group("Add Coins", function() {
